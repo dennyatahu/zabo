@@ -1,6 +1,7 @@
 import { config } from "../config.js";
 import { logger } from "../core/logger.js";
 import { formatPairingCode } from "../utils/format-pairing-code.js";
+import { renderQr } from "../utils/render-qr.js";
 
 const requestPairingCode = async (session, target) => {
   try {
@@ -17,7 +18,7 @@ const requestPairingCode = async (session, target) => {
   }
 };
 
-export const bindAuthEvents = (session, target) => {
+const bindPairMethod = (session, target) => {
   let requested = false;
 
   const pair = async () => {
@@ -38,6 +39,25 @@ export const bindAuthEvents = (session, target) => {
     requested = false;
     void pair();
   });
+};
+
+const bindQrMethod = (session, target) => {
+  session.listen(target, "auth_qr", async ({ qr, ttlMs }) => {
+    const output = await renderQr(qr);
+
+    if (!session.isCurrent(target)) return;
+
+    logger.info(`scan this QR code within ${Math.round(ttlMs / 1000)}s`);
+    process.stdout.write(`${output}\n`);
+  });
+};
+
+export const bindAuthEvents = (session, target) => {
+  if (config.authMethod === "qr") {
+    bindQrMethod(session, target);
+  } else {
+    bindPairMethod(session, target);
+  }
 
   session.listen(target, "auth_paired", ({ credentials }) => {
     logger.info(`paired as ${credentials.meJid}`);
