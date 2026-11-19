@@ -1,12 +1,14 @@
 import { store } from "./store.js";
 import { logger } from "./logger.js";
 import { isOwner } from "../lib/owner.js";
+import { menuManager } from "../managers/menu-manager.js";
 import { pluginManager } from "../managers/plugin-manager.js";
 import { prefixManager } from "../managers/prefix-manager.js";
 import { selfManager } from "../managers/self-manager.js";
 import { splitString } from "../utils/split-string.js";
 
 const managers = {
+  menuManager,
   pluginManager,
   prefixManager,
   selfManager,

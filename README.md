@@ -9,6 +9,7 @@ Fast & modern WhatsApp bot built with [zapo-js](https://www.npmjs.com/package/za
 - **Smart reconnect** – exponential backoff with jitter, fresh re-login after logout, and a clean stop on fatal errors (ban, replaced session)
 - **Runtime prefix control** – add, remove, enable, or disable prefixes from chat
 - **Self mode** – restrict the bot to the owner with one command
+- **Dynamic menu** – auto-generated from plugin categories, with a customizable link preview (url, title, description, thumbnail, favicon)
 - **Persistent SQLite session** – credentials and state survive restarts
 - **Graceful shutdown** – handles `SIGINT` / `SIGTERM` and uncaught errors
 
@@ -93,7 +94,29 @@ export default {
 };
 ```
 
-`ownerOnly` and `options.bypassPrefix` are optional (the latter makes the command work even when prefix mode is on). The handler context also exposes `q` (quoted message), `store`, `command`, `prefix`, and the managers (`pluginManager`, `prefixManager`, `selfManager`). Commands are case-insensitive and must not contain spaces.
+`ownerOnly` and `options.bypassPrefix` are optional (the latter makes the command work even when prefix mode is on). The handler context also exposes `q` (quoted message), `store`, `command`, `prefix`, and the managers (`pluginManager`, `prefixManager`, `selfManager`, `menuManager`). Commands are case-insensitive and must not contain spaces.
+
+## Menu
+
+The menu is generated from each plugin's `categories` and `commands`, so new plugins show up automatically. Settings live in `data/menu.json`.
+
+| Command | Access | Description |
+| --- | --- | --- |
+| `menu` | everyone | Main menu (category list) |
+| `menu <category>` | everyone | Commands in one category |
+| `menu all` | everyone | All categories |
+| `menu --help` / `-h` | everyone | Usage guide |
+| `menu --set --thumbnail <url>` | owner | Set the thumbnail (or reply to / caption an image) |
+| `menu --set --thumbnail --name <text>` / `--index <n>` | owner | Set the thumbnail from a saved one |
+| `menu --set --favicon <url>` | owner | Set the favicon (also `--name` / `--index`) |
+| `menu --set --url <url>` / `--title <text>` / `--desc <text>` | owner | Update the link preview text |
+| `menu --get --thumbnail` | owner | Receive `thumbnail-buffer.json` with the base64 image |
+| `menu --get --url` / `--title` / `--desc` | owner | Show the current value |
+| `menu --del --url` / `--title` / `--desc` | owner | Clear the value |
+| `menu --save --thumbnail <url> --name <text>` | owner | Save a thumbnail (or reply to / caption an image) |
+| `menu --save --favicon <url> --name <text>` | owner | Save a favicon |
+| `menu --save --list [--thumbnail \| --favicon]` | owner | List saved items (index starts at 1) |
+| `menu --del --thumbnail <index \| name>` / `--favicon <index \| name>` | owner | Delete a saved item |
 
 ## Project Structure
 
@@ -103,12 +126,12 @@ src/
 ├── config.js         # env (authMethod, botPn, owners) + paths
 ├── core/             # client, session, dispatcher, store, logger
 ├── events/           # auth (pair / qr), connection, message handlers
-├── managers/         # plugin, prefix, self state
+├── managers/         # plugin, prefix, self, menu state
 ├── plugins/          # commands (info, owner, ...)
 ├── lib/              # owner check, message serializer
 ├── utils/            # small helpers (pairing code, QR render, ...)
 └── constants/        # reconnect settings
-data/                 # runtime data (git-ignored): session, prefix, self mode
+data/                 # runtime data (git-ignored): session, prefix, self mode, menu
 ```
 
 ## Notes
