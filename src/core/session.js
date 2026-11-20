@@ -1,6 +1,7 @@
 import { delay } from "zapo-js";
 
 import { createClient } from "./client.js";
+import { closeDatabase } from "./database.js";
 import { flushLogger, logger } from "./logger.js";
 import { store } from "./store.js";
 import { bindEvents } from "../events/index.js";
@@ -95,6 +96,12 @@ export class Session {
       await store.destroy();
     } catch (error) {
       logger.error({ err: error }, "store destroy failed");
+    }
+
+    try {
+      closeDatabase();
+    } catch (error) {
+      logger.error({ err: error }, "database close failed");
     }
 
     await flushLogger();

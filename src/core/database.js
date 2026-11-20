@@ -73,6 +73,10 @@ db.exec("PRAGMA journal_mode = WAL");
 db.exec("PRAGMA synchronous = NORMAL");
 db.exec(SCHEMA);
 
+export const closeDatabase = () => {
+  if (db.isOpen) db.close();
+};
+
 export const transaction = (task) => {
   db.exec("BEGIN IMMEDIATE");
 
