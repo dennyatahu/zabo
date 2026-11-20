@@ -24,7 +24,6 @@
     "name": "dennyatahu",
     "url": "https://github.com/dennyatahu"
   },
-  "private": true,
   "type": "module",
   "main": "src/index.js",
   "engines": {
