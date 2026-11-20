@@ -103,6 +103,8 @@ const handleGet = async (context) => {
   const { client, jid, m, flags, menuManager } = context;
 
   if (flags.has("thumbnail")) {
+    await menuManager.ensureDefaults(client);
+
     const { data, error } = menuManager.getThumbnail();
 
     if (error) return fail(error);
@@ -217,6 +219,6 @@ export default {
 
     if (error) return m.reply(error);
 
-    return client.message.send(jid, menuManager.compose(data), { quote: m });
+    return client.message.send(jid, await menuManager.compose(data, client), { quote: m });
   },
 };

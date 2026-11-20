@@ -1,6 +1,6 @@
 import { proto } from "zapo-js";
 
-import { FAVICON_SIZE } from "../constants/image.js";
+import { DEFAULT_MEDIA_URLS, FAVICON_SIZE } from "../constants/image.js";
 import { db, transaction } from "../core/database.js";
 import { logger } from "../core/logger.js";
 import { processImage } from "../lib/image-processor.js";
@@ -216,6 +216,26 @@ const parseStored = (stored) => ({
 
 class MenuManager {
   #data = parseStored(undefined);
+  #defaults = new Map();
+  #defaultsReady = false;
+
+  async ensureDefaults(client) {
+    if (this.#defaultsReady || !client) return;
+    this.#defaultsReady = true;
+
+    await Promise.all(
+      ["thumbnail", "favicon"].map(async (kind) => {
+        try {
+          const image = await fetchImage(DEFAULT_MEDIA_URLS[kind]);
+          const message = await KINDS[kind].build(client, image);
+
+          this.#defaults.set(kind, { image, message });
+        } catch (err) {
+          logger.warn({ err, kind }, "default menu media unavailable");
+        }
+      }),
+    );
+  }
 
   init() {
     const profile = db.prepare("SELECT url, title, description FROM menu_profile WHERE id = 1").get();
@@ -274,13 +294,17 @@ class MenuManager {
     return group ? ok(categoryText(group)) : fail(`Category \`${input.trim()}\` not found.`);
   }
 
-  compose(text) {
+  async compose(text, client) {
     const { url, title, description, thumbnail, favicon } = this.#data;
 
     if (!url) return text;
 
-    const thumbnailFields = pick(thumbnail?.message.extendedTextMessage, THUMBNAIL_FIELDS);
-    const faviconFields = pick(favicon?.message.extendedTextMessage, FAVICON_FIELDS);
+    await this.ensureDefaults(client);
+
+    const activeThumbnail = thumbnail ?? this.#defaults.get("thumbnail");
+    const activeFavicon = favicon ?? this.#defaults.get("favicon");
+    const thumbnailFields = pick(activeThumbnail?.message.extendedTextMessage, THUMBNAIL_FIELDS);
+    const faviconFields = pick(activeFavicon?.message.extendedTextMessage, FAVICON_FIELDS);
 
     return {
       extendedTextMessage: {
@@ -330,7 +354,7 @@ class MenuManager {
   }
 
   getThumbnail() {
-    const { thumbnail } = this.#data;
+    const thumbnail = this.#data.thumbnail ?? this.#defaults.get("thumbnail");
 
     return thumbnail ? ok(thumbnail.image.toString("base64")) : fail(MESSAGES.NO_THUMBNAIL);
   }
