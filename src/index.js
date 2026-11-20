@@ -1,18 +1,45 @@
-import { Session } from "./core/session.js";
-import { registerProcessHandlers } from "./core/process.js";
-import { menuManager } from "./managers/menu-manager.js";
-import { pluginManager } from "./managers/plugin-manager.js";
-import { prefixManager } from "./managers/prefix-manager.js";
-import { selectiveManager } from "./managers/selective-manager.js";
-import { selfManager } from "./managers/self-manager.js";
+import { spawn } from "node:child_process";
+import { resolve } from "node:path";
 
-const session = new Session();
+import { RESTART_EXIT_CODE, SUPERVISED_ENV } from "./constants/restart.js";
 
-registerProcessHandlers(session);
+const entry = resolve(import.meta.dirname, "main.js");
+const execArgv = process.execArgv.filter((arg) => !arg.startsWith("--watch"));
 
-prefixManager.init();
-selfManager.init();
-selectiveManager.init();
-menuManager.init();
-await pluginManager.load();
-await session.start();
+let child = null;
+let stopping = false;
+
+const start = () => {
+  child = spawn(process.execPath, [...execArgv, entry], {
+    stdio: "inherit",
+    env: { ...process.env, [SUPERVISED_ENV]: "1" },
+  });
+
+  child.once("error", (error) => {
+    console.error(`[launcher] failed to start: ${error.message}`);
+    process.exit(1);
+  });
+
+  child.once("exit", (code) => {
+    child = null;
+
+    if (!stopping && code === RESTART_EXIT_CODE) {
+      start();
+      return;
+    }
+
+    process.exit(code ?? (stopping ? 0 : 1));
+  });
+};
+
+const stop = (signal) => {
+  stopping = true;
+
+  if (child) child.kill(signal);
+  else process.exit(0);
+};
+
+process.on("SIGINT", () => stop("SIGINT"));
+process.on("SIGTERM", () => stop("SIGTERM"));
+
+start();

@@ -30,6 +30,8 @@ export const createEvalPlugin = ({ name, trigger, wrap = (code) => code }) => ({
       menuManager,
       pluginManager,
       prefixManager,
+      reloadManager,
+      restartManager,
       selectiveManager,
       selfManager,
     } = ctx;

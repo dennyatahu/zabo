@@ -5,6 +5,8 @@ import { createSelectiveClient, isSelectiveClient } from "../lib/selective-clien
 import { menuManager } from "../managers/menu-manager.js";
 import { pluginManager } from "../managers/plugin-manager.js";
 import { prefixManager } from "../managers/prefix-manager.js";
+import { reloadManager } from "../managers/reload-manager.js";
+import { restartManager } from "../managers/restart-manager.js";
 import { selectiveManager } from "../managers/selective-manager.js";
 import { selfManager } from "../managers/self-manager.js";
 import { splitString } from "../utils/split-string.js";
@@ -13,6 +15,8 @@ const managers = {
   menuManager,
   pluginManager,
   prefixManager,
+  reloadManager,
+  restartManager,
   selectiveManager,
   selfManager,
 };

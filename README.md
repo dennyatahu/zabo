@@ -24,6 +24,7 @@ Plugin-based · ESM-only · Persistent SQLite session
 - **Drop-in plugins** — add a `.js` file under `src/plugins/`, restart, and it is loaded automatically.
 - **Reliable reconnects** — exponential backoff with jitter, fresh re-login after unlinking, and a clean stop on fatal disconnects.
 - **Chat-side controls** — manage prefixes, self mode, and selective replies without editing files.
+- **Restart & reload** — `res` restarts the whole process, `r` hot-reloads plugins and lists changed files.
 - **Dynamic menu** — generated from plugin categories, with a customizable link preview.
 - **Persistent state** — the WhatsApp session and runtime settings survive restarts.
 
@@ -51,7 +52,7 @@ Run the bot:
 
 ```bash
 npm start      # start the bot
-npm run dev    # start with file watching
+npm run dev    # start with file watching (runs without the launcher, so `res` is unavailable)
 ```
 
 The bot exits with a clear message if `AUTH_METHOD` is invalid or `BOT_PN` is missing in `pair` mode.
@@ -91,21 +92,22 @@ export default {
 
 `ownerOnly` and `options.bypassPrefix` are optional. Set the latter to make a command work even when prefix mode is on.
 
-The handler context also provides `args`, `q` (quoted message), `store`, `command`, `prefix`, and the managers: `pluginManager`, `prefixManager`, `selfManager`, `selectiveManager`, and `menuManager`. Commands are case-insensitive and cannot contain spaces.
+The handler context also provides `args`, `q` (quoted message), `store`, `command`, `prefix`, and the managers: `pluginManager`, `prefixManager`, `selfManager`, `selectiveManager`, `menuManager`, `reloadManager`, and `restartManager`. Commands are case-insensitive and cannot contain spaces.
 
 ## Project Structure
 
 ```text
 src/
-├── index.js        # bootstrap
+├── index.js        # launcher (restarts the bot process)
+├── main.js         # bootstrap
 ├── config.js       # environment + paths
 ├── core/           # client, session, dispatcher, store, logger
 ├── events/         # auth, connection, and message handlers
-├── managers/       # plugin, prefix, self, selective, menu
+├── managers/       # plugin, prefix, self, selective, menu, reload, restart
 ├── plugins/        # commands grouped by category
 ├── lib/            # serialization, owner check, image pipeline, selective send
 ├── utils/          # shared helpers
-└── constants/      # reconnect and image settings
+└── constants/      # reconnect, restart, and image settings
 
 data/               # runtime state (auto-created, git-ignored)
 ```

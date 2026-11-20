@@ -37,6 +37,8 @@ export const config = Object.freeze({
       .filter(Boolean),
   ),
   paths: Object.freeze({
+    root: resolve(import.meta.dirname, ".."),
+    src: import.meta.dirname,
     data: dataDir,
     plugins: resolve(import.meta.dirname, "plugins"),
     session: resolve(dataDir, "session.sqlite"),

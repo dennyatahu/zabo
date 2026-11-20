@@ -31,7 +31,7 @@
   },
   "scripts": {
     "start": "node --env-file=.env src/index.js",
-    "dev": "node --watch --env-file=.env src/index.js"
+    "dev": "node --watch --env-file=.env src/main.js"
   },
   "dependencies": {
     "@zapo-js/native": "^0.1.0",

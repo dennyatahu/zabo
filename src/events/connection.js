@@ -2,6 +2,7 @@ import { WA_DISCONNECT_REASONS } from "zapo-js";
 
 import { logger } from "../core/logger.js";
 import { FATAL_REASONS } from "../constants/reconnect.js";
+import { restartManager } from "../managers/restart-manager.js";
 
 export const bindConnectionEvents = (session, target) => {
   session.listen(target, "connection", async (event) => {
@@ -10,6 +11,7 @@ export const bindConnectionEvents = (session, target) => {
     if (event.status === "open") {
       session.resetAttempts();
       logger.info(`connection open (${event.reason}${event.isNewLogin ? ", new login" : ""})`);
+      void restartManager.announce(target);
       return;
     }
 

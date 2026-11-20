@@ -9,10 +9,15 @@ import { isValidPlugin } from "../utils/is-valid-plugin.js";
 class PluginManager {
   #commands = new Map();
   #plugins = [];
+  #failures = [];
   #queue = Promise.resolve();
 
   get array() {
     return this.#plugins;
+  }
+
+  get failures() {
+    return this.#failures;
   }
 
   get(command) {
@@ -49,6 +54,7 @@ class PluginManager {
       return plugin;
     } catch (err) {
       logger.error({ err, path }, "plugin load failed");
+      this.#failures.push({ path, message: err.message });
 
       return null;
     }
@@ -78,6 +84,9 @@ class PluginManager {
 
   async #loadAll() {
     const stamp = Date.now();
+
+    this.#failures = [];
+
     const paths = await this.#scan();
     const results = await Promise.all(paths.map((path) => this.#import(path, stamp)));
     const plugins = results.filter(Boolean);

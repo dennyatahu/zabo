@@ -1,0 +1,3 @@
+export const RESTART_EXIT_CODE = 75;
+export const RESTART_NOTICE_TTL_MS = 5 * 60_000;
+export const SUPERVISED_ENV = "ZABO_SUPERVISED";

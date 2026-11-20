@@ -62,6 +62,12 @@ CREATE TABLE IF NOT EXISTS menu_saved_media (
 );
 
 CREATE INDEX IF NOT EXISTS idx_menu_saved_media_kind ON menu_saved_media (kind, id);
+
+CREATE TABLE IF NOT EXISTS restart_request (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  jid TEXT NOT NULL,
+  requested_at INTEGER NOT NULL
+);
 `;
 
 export const db = new DatabaseSync(config.paths.database, {
