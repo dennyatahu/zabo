@@ -1,11 +1,6 @@
 <div align="center">
 
-<img src="https://cloud.yardansh.com/iny7FQ.png" alt="zabo banner" width="100%" />
-
-<br />
-<br />
-
-<img src="https://cloud.yardansh.com/Kbmh9u.png" alt="zabo logo" width="120" />
+<img src="https://cloud.yardansh.com/Kbmh9u.png" alt="zabo logo" width="160" />
 
 # zabo
 
