@@ -41,6 +41,7 @@ Configure `.env`:
 | `AUTH_METHOD` | `pair`  | Login method: `pair` (pairing code) or `qr` (QR code).                       |
 | `BOT_PN`      | —       | Bot phone number, digits only with country code. Required for `pair`.        |
 | `OWNER`       | —       | Owner number(s), comma-separated. Owner commands work without a prefix.      |
+| `LOG_LEVEL`   | `info`  | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `silent`. |
 
 ```bash
 npm start      # start the bot
@@ -83,7 +84,7 @@ Commands are case-insensitive. Prefix mode is **off** by default, and owner comm
 selective --on | --off [--all]                          # current group or all groups
 selective --only --set <cmd, cmd> [--to <numbers>]      # force selective for commands
 selective --only --del <cmd, cmd> [--to <numbers>]
-selective --only --list [--to]
+selective --only --list
 ```
 
 `--to` accepts numbers, `@mentions`, or a replied user. Without it, replies are addressed to the sender.

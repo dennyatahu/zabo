@@ -1,7 +1,7 @@
 import { delay } from "zapo-js";
 
 import { createClient } from "./client.js";
-import { logger } from "./logger.js";
+import { flushLogger, logger } from "./logger.js";
 import { store } from "./store.js";
 import { bindEvents } from "../events/index.js";
 import { RECONNECT_FRESH_MS } from "../constants/reconnect.js";
@@ -96,6 +96,8 @@ export class Session {
     } catch (error) {
       logger.error({ err: error }, "store destroy failed");
     }
+
+    await flushLogger();
 
     process.exit(code);
   }

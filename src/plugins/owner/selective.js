@@ -11,7 +11,7 @@ const buildUsage = ({ isActive, isGlobalActive }, jid) =>
     "selective --on | --off [--all]",
     "selective --only --set <cmd, cmd> [--to ...]",
     "selective --only --del <cmd, cmd> [--to ...]",
-    "selective --only --list [--to]",
+    "selective --only --list",
     `Current: ${isActive(jid) ? "on" : "off"} (all groups: ${isGlobalActive ? "on" : "off"})`,
   ].join("\n");
 
@@ -21,7 +21,7 @@ const ONLY_USAGE = [
   "selective --only --set <cmd, cmd> --to <number | @mention>",
   "selective --only --set <cmd, cmd> --to (reply a user)",
   "selective --only --del <cmd, cmd> [--to ...]",
-  "selective --only --list [--to]",
+  "selective --only --list",
 ].join("\n");
 
 const toggle = (single, all) => ({ m, rest, jid, selectiveManager }) => {
@@ -64,27 +64,31 @@ const resolveIds = (text, m) => {
   return { ids: [...ids], invalid };
 };
 
-const formatList = ({ onlyList, targetList }, onlyTo, names) => {
+const formatList = ({ onlyList, targetList }, names) => {
   const label = (id) => (names.has(id) ? `${names.get(id)} (@${id})` : `@${id}`);
-  const lines = [];
+  const only = onlyList.length
+    ? onlyList.map((name, index) => `  ${index + 1}. ${name}`).join("\n")
+    : "  -";
+  const targets = targetList.length
+    ? targetList
+        .map(([name, ids]) => [`  ▸ ${name}`, ...ids.map((id) => `    • ${label(id)}`)].join("\n"))
+        .join("\n\n")
+    : "  -";
 
-  if (!onlyTo) {
-    lines.push("*Selective Only*", ...(onlyList.length ? onlyList.map((n, i) => `${i + 1}. ${n}`) : ["-"]));
-  }
-
-  lines.push(
-    "*Selective To*",
-    ...(targetList.length ? targetList.map(([n, ids]) => `${n}: ${ids.map(label).join(", ")}`) : ["-"]),
-  );
-
-  return lines.join("\n");
+  return [
+    `*Selective Only* (${onlyList.length})`,
+    only,
+    "",
+    `*Selective To* (${targetList.length})`,
+    targets,
+  ].join("\n");
 };
 
-const showList = async ({ m, selectiveManager }, value) => {
+const showList = async ({ m, selectiveManager }) => {
   const ids = new Set(selectiveManager.targetList.flatMap(([, targets]) => targets));
   const names = await findPushNames([...ids]);
 
-  return m.reply(formatList(selectiveManager, TO_FLAG.test(value), names));
+  return m.reply(formatList(selectiveManager, names));
 };
 
 const editList = ({ m, selectiveManager, pluginManager }, isSet, value) => {
@@ -119,7 +123,7 @@ const only = (context) => {
   const { first, rest: value = "" } = splitString(context.rest);
   const flag = first?.toLowerCase();
 
-  if (flag === "--list") return showList(context, value);
+  if (flag === "--list") return showList(context);
   if (flag === "--set" || flag === "--del") return editList(context, flag === "--set", value);
 
   return context.m.reply(ONLY_USAGE);
