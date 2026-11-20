@@ -1,9 +1,11 @@
 import { store } from "./store.js";
 import { logger } from "./logger.js";
 import { isOwner } from "../lib/owner.js";
+import { createSelectiveClient, isSelectiveClient } from "../lib/selective-client.js";
 import { menuManager } from "../managers/menu-manager.js";
 import { pluginManager } from "../managers/plugin-manager.js";
 import { prefixManager } from "../managers/prefix-manager.js";
+import { selectiveManager } from "../managers/selective-manager.js";
 import { selfManager } from "../managers/self-manager.js";
 import { splitString } from "../utils/split-string.js";
 
@@ -11,6 +13,7 @@ const managers = {
   menuManager,
   pluginManager,
   prefixManager,
+  selectiveManager,
   selfManager,
 };
 
@@ -40,6 +43,16 @@ const isAllowed = (m, plugin) => {
   return isOwner(m);
 };
 
+const useSelective = (m, targets) => {
+  if (!m.key.isGroup || isSelectiveClient(m.client)) return;
+
+  const client = createSelectiveClient(m.client, m.key, targets);
+
+  m.client = client;
+
+  if (m.q) m.q.client = client;
+};
+
 const createContext = (m, { plugin, command, prefix, rest }) => {
   const jid = m.key.remoteJid;
 
@@ -57,6 +70,16 @@ const createContext = (m, { plugin, command, prefix, rest }) => {
   };
 };
 
+const run = async (m, found, { selective, targets }) => {
+  try {
+    if (selective) useSelective(m, targets);
+
+    await found.plugin.fn(createContext(m, found));
+  } catch (error) {
+    logger.error({ err: error, plugin: found.plugin.name, command: found.command }, "plugin failed");
+  }
+};
+
 export const dispatch = async (m) => {
   if (typeof m.text !== "string" || !m.text) return;
   if (m.key.isNewsletter || m.key.isBroadcast) return;
@@ -66,9 +89,8 @@ export const dispatch = async (m) => {
 
   if (!isAllowed(m, found.plugin)) return;
 
-  try {
-    await found.plugin.fn(createContext(m, found));
-  } catch (error) {
-    logger.error({ err: error, plugin: found.plugin.name, command: found.command }, "plugin failed");
-  }
+  await run(m, found, {
+    selective: selectiveManager.shouldUse(m.key.remoteJid, found.plugin.name),
+    targets: selectiveManager.targetsOf(found.plugin.name),
+  });
 };

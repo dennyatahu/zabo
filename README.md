@@ -69,10 +69,13 @@ Owner-only commands work without a prefix. Everyone can use the public ones unle
 | `ping`, `p`       | Public | Replies with `pong!` and the measured latency                |
 | `mem`             | Public | Shows Node.js memory usage                                   |
 | `self on \| off`  | Owner  | Toggle self mode (only the owner can use the bot)            |
-| `prefix <action>` | Owner  | `add <p>`, `del <p \| number>`, `list`, `on`, `off`, `reset` |
+| `prefix <flag>`   | Owner  | `--add <p>`, `--del <p \| number>`, `--list`, `--on`, `--off`, `--reset` |
+| `selective <flag>` | Owner | `--on`, `--off` (this group), `--on --all`, `--off --all` (all groups), `--only --set <cmd, cmd>`, `--only --del <cmd, cmd>`, `--only --list` |
 | `! <code>`        | Owner  | Evaluate JavaScript                                          |
 | `!! <code>`       | Owner  | Evaluate async JavaScript (wrapped in an async function)     |
 | `$ <command>`     | Owner  | Run a shell command; long output is sent as a file           |
+
+`selective --only --list` shows each target's WhatsApp display name (pushName) next to the number. A name is known after that user has sent a message the bot received; until then only `@number` is shown.
 
 > **Security:** `!`, `!!`, and `$` give full control of the host machine. Only put numbers you fully trust in `OWNER`.
 
@@ -94,7 +97,7 @@ export default {
 };
 ```
 
-`ownerOnly` and `options.bypassPrefix` are optional (the latter makes the command work even when prefix mode is on). The handler context also exposes `q` (quoted message), `store`, `command`, `prefix`, and the managers (`pluginManager`, `prefixManager`, `selfManager`, `menuManager`). Commands are case-insensitive and must not contain spaces.
+`ownerOnly` and `options.bypassPrefix` are optional (the latter makes the command work even when prefix mode is on). The handler context also exposes `q` (quoted message), `store`, `command`, `prefix`, and the managers (`pluginManager`, `prefixManager`, `selfManager`, `selectiveManager`, `menuManager`). Commands are case-insensitive and must not contain spaces.
 
 ## Menu
 
@@ -126,18 +129,18 @@ src/
 ├── config.js         # env (authMethod, botPn, owners) + paths
 ├── core/             # client, session, dispatcher, store, logger
 ├── events/           # auth (pair / qr), connection, message handlers
-├── managers/         # plugin, prefix, self, menu state
+├── managers/         # plugin, prefix, self, selective, menu state
 ├── plugins/          # commands (info, owner, ...)
-├── lib/              # owner check, message serializer
+├── lib/              # owner check, message serializer, selective group send, push name store
 ├── utils/            # small helpers (pairing code, QR render, ...)
 └── constants/        # reconnect settings
-data/                 # runtime data (git-ignored): session, prefix, self mode, menu
+data/                 # runtime data (git-ignored): session, prefix, self mode, selective mode, menu
 ```
 
 ## Notes
 
 - Never commit `data/` or `.env`. `data/session.sqlite` holds your WhatsApp credentials.
-- Prefix mode is **off** by default, so commands work without a prefix until you run `prefix on`.
+- Prefix mode is **off** by default, so commands work without a prefix until you run `prefix --on`.
 
 ## License
 
