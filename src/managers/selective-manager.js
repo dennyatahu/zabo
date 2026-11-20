@@ -1,7 +1,4 @@
-import { join } from "node:path";
-
-import { config } from "../config.js";
-import { createJsonSaver, readJson } from "../utils/json-file.js";
+import { db, getSetting, setSetting, transaction } from "../core/database.js";
 import { fail, ok } from "../utils/result.js";
 
 const MESSAGES = Object.freeze({
@@ -14,10 +11,6 @@ const MESSAGES = Object.freeze({
   NOT_GROUP: "Use this command in a group, or add --all for all groups.",
 });
 
-const FILE_PATH = join(config.paths.data, "selective.json");
-
-const save = createJsonSaver(FILE_PATH, "selective");
-
 const isId = (value) => typeof value === "string" && /^\d+$/.test(value);
 
 class SelectiveManager {
@@ -26,23 +19,33 @@ class SelectiveManager {
   #only = new Set();
   #targets = new Map();
 
-  async init() {
-    const data = await readJson(FILE_PATH);
+  init() {
+    this.#global = getSetting("selective_mode");
 
-    this.#global = data?.isSelectiveActive === true;
     this.#groups = new Map(
-      Object.entries(data?.groups ?? {}).filter(([, value]) => typeof value === "boolean"),
+      db
+        .prepare("SELECT jid, active FROM selective_groups")
+        .all()
+        .map(({ jid, active }) => [jid, active === 1]),
     );
 
     this.#only = new Set(
-      Array.isArray(data?.only) ? data.only.filter((name) => typeof name === "string") : [],
+      db
+        .prepare("SELECT name FROM selective_commands")
+        .all()
+        .map(({ name }) => name),
     );
 
-    this.#targets = new Map(
-      Object.entries(data?.targets ?? {})
-        .map(([name, ids]) => [name, new Set(Array.isArray(ids) ? ids.filter(isId) : [])])
-        .filter(([, ids]) => ids.size),
-    );
+    this.#targets = new Map();
+
+    for (const { command, user_id } of db
+      .prepare("SELECT command, user_id FROM selective_targets")
+      .all()) {
+      const ids = this.#targets.get(command) ?? new Set();
+
+      ids.add(user_id);
+      this.#targets.set(command, ids);
+    }
   }
 
   get isGlobalActive() {
@@ -68,7 +71,13 @@ class SelectiveManager {
       this.#targets.set(name, current);
     }
 
-    this.#save();
+    transaction(() => {
+      const insert = db.prepare(
+        "INSERT OR IGNORE INTO selective_targets (command, user_id) VALUES (?, ?)",
+      );
+
+      for (const name of names) for (const id of ids) insert.run(name, id);
+    });
 
     return ok(
       `Selective targets added: ${names.join(", ")} -> ${ids.map((id) => `@${id}`).join(", ")}.`,
@@ -90,7 +99,13 @@ class SelectiveManager {
 
     if (!removed) return fail("No matching selective targets found.");
 
-    this.#save();
+    transaction(() => {
+      const remove = db.prepare(
+        "DELETE FROM selective_targets WHERE command = ? AND user_id = ?",
+      );
+
+      for (const name of names) for (const id of ids) remove.run(name, id);
+    });
 
     return ok(`Selective targets removed: ${removed}.`);
   };
@@ -103,7 +118,14 @@ class SelectiveManager {
     const added = names.filter((name) => !this.#only.has(name));
 
     names.forEach((name) => this.#only.add(name));
-    this.#save();
+
+    if (added.length) {
+      transaction(() => {
+        const insert = db.prepare("INSERT OR IGNORE INTO selective_commands (name) VALUES (?)");
+
+        added.forEach((name) => insert.run(name));
+      });
+    }
 
     return added.length
       ? ok(`Selective only added: ${added.join(", ")}.`)
@@ -115,7 +137,11 @@ class SelectiveManager {
 
     if (!removed.length) return fail("None of those commands are in the selective only list.");
 
-    this.#save();
+    transaction(() => {
+      const remove = db.prepare("DELETE FROM selective_commands WHERE name = ?");
+
+      removed.forEach((name) => remove.run(name));
+    });
 
     return ok(`Selective only removed: ${removed.join(", ")}.`);
   };
@@ -136,7 +162,12 @@ class SelectiveManager {
     }
 
     this.#groups.set(jid, active);
-    this.#save();
+
+    db.prepare(
+      `INSERT INTO selective_groups (jid, active) VALUES (?, ?)
+       ON CONFLICT(jid) DO UPDATE SET active = excluded.active,
+       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
+    ).run(jid, Number(active));
 
     return ok(active ? MESSAGES.ENABLED : MESSAGES.DISABLED);
   }
@@ -144,18 +175,13 @@ class SelectiveManager {
   #setAll(active) {
     this.#global = active;
     this.#groups.clear();
-    this.#save();
+
+    transaction(() => {
+      setSetting("selective_mode", active);
+      db.prepare("DELETE FROM selective_groups").run();
+    });
 
     return ok(active ? MESSAGES.ENABLED_ALL : MESSAGES.DISABLED_ALL);
-  }
-
-  #save() {
-    return save({
-      isSelectiveActive: this.#global,
-      groups: Object.fromEntries(this.#groups),
-      only: [...this.#only],
-      targets: Object.fromEntries([...this.#targets].map(([name, ids]) => [name, [...ids]])),
-    });
   }
 }
 

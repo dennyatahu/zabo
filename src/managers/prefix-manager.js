@@ -1,7 +1,4 @@
-import { join } from "node:path";
-
-import { config } from "../config.js";
-import { createJsonSaver, readJson } from "../utils/json-file.js";
+import { db, getSetting, setSetting, transaction } from "../core/database.js";
 import { fail, ok } from "../utils/result.js";
 import { pluginManager } from "./plugin-manager.js";
 
@@ -20,26 +17,20 @@ const MESSAGES = Object.freeze({
   RESET: "Prefix list was reset.",
 });
 
-const FILE_PATH = join(config.paths.data, "prefix.json");
-
-const save = createJsonSaver(FILE_PATH, "prefix");
-
 const isValidPrefix = (value) => typeof value === "string" && value.length > 0;
 
 class PrefixManager {
   #prefixes = [...DEFAULT_PREFIXES];
   #active = false;
 
-  async init() {
-    const data = await readJson(FILE_PATH);
-    const prefixes = Array.isArray(data?.prefixList)
-      ? [...new Set(data.prefixList.filter(isValidPrefix))]
-      : [];
+  init() {
+    const rows = db.prepare("SELECT value FROM prefixes ORDER BY position").all();
+    const prefixes = rows.map(({ value }) => value).filter(isValidPrefix);
 
-    this.#active = data?.isPrefixActive === true;
+    this.#active = getSetting("prefix_mode");
     this.#prefixes = prefixes.length ? prefixes : [...DEFAULT_PREFIXES];
 
-    if (!prefixes.length) await this.#save();
+    if (!prefixes.length) this.#persist();
   }
 
   getConfig = () => ({
@@ -88,7 +79,7 @@ class PrefixManager {
     if (this.#prefixes.includes(prefix)) return fail(MESSAGES.EXISTS);
 
     this.#prefixes.push(prefix);
-    this.#save();
+    this.#persist();
 
     return ok(`Prefix \`${prefix}\` added.`);
   };
@@ -103,14 +94,14 @@ class PrefixManager {
     if (indexError) return fail(indexError);
 
     const [removed] = this.#prefixes.splice(index, 1);
-    this.#save();
+    this.#persist();
 
     return ok(`Prefix \`${removed}\` deleted.`);
   };
 
   resetPrefix = () => {
     this.#prefixes = [...DEFAULT_PREFIXES];
-    this.#save();
+    this.#persist();
 
     return ok(MESSAGES.RESET);
   };
@@ -121,7 +112,7 @@ class PrefixManager {
     }
 
     this.#active = active;
-    this.#save();
+    setSetting("prefix_mode", active);
 
     return ok(active ? MESSAGES.ENABLED : MESSAGES.DISABLED);
   }
@@ -155,8 +146,14 @@ class PrefixManager {
     return { index: position - 1 };
   }
 
-  #save() {
-    return save({ isPrefixActive: this.#active, prefixList: this.#prefixes });
+  #persist() {
+    transaction(() => {
+      db.prepare("DELETE FROM prefixes").run();
+
+      const insert = db.prepare("INSERT INTO prefixes (position, value) VALUES (?, ?)");
+
+      this.#prefixes.forEach((value, position) => insert.run(position, value));
+    });
   }
 }
 

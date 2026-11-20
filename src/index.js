@@ -10,9 +10,9 @@ const session = new Session();
 
 registerProcessHandlers(session);
 
-await prefixManager.init();
-await selfManager.init();
-await selectiveManager.init();
-await menuManager.init();
+prefixManager.init();
+selfManager.init();
+selectiveManager.init();
+menuManager.init();
 await pluginManager.load();
 await session.start();

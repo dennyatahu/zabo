@@ -1,12 +1,9 @@
-import { join } from "node:path";
-
 import { proto } from "zapo-js";
 
-import { config } from "../config.js";
 import { FAVICON_SIZE } from "../constants/image.js";
+import { db, transaction } from "../core/database.js";
 import { logger } from "../core/logger.js";
 import { processImage } from "../lib/image-processor.js";
-import { createJsonSaver, readJson } from "../utils/json-file.js";
 import { fail, ok } from "../utils/result.js";
 import { pluginManager } from "./plugin-manager.js";
 
@@ -56,10 +53,6 @@ const MESSAGES = Object.freeze({
 
 class UserError extends Error {}
 
-const FILE_PATH = join(config.paths.data, "menu.json");
-
-const save = createJsonSaver(FILE_PATH, "menu");
-
 const byLocale = (a, b) => a.localeCompare(b);
 
 const isHttpUrl = (value) => /^https?:\/\//i.test(value) && URL.canParse(value);
@@ -91,10 +84,9 @@ const attempt = async (label, task) => {
   }
 };
 
-const encodeMessage = (message) =>
-  Buffer.from(proto.Message.encode(message).finish()).toString("base64url");
+const encodeMessage = (message) => Buffer.from(proto.Message.encode(message).finish());
 
-const decodeMessage = (value) => proto.Message.decode(Buffer.from(value, "base64url"));
+const decodeMessage = (value) => proto.Message.decode(value);
 
 const createMessage = (extendedTextMessage) =>
   proto.Message.decode(proto.Message.encode(new proto.Message({ extendedTextMessage })).finish());
@@ -194,10 +186,10 @@ const categoryText = ({ category, rows }) =>
 const readText = (value, fallback) => (typeof value === "string" ? value : fallback);
 
 const readActive = (value) => {
-  if (typeof value?.image !== "string" || typeof value?.message !== "string") return undefined;
+  if (!value?.image || !value?.message) return undefined;
 
   try {
-    return { image: Buffer.from(value.image, "base64"), message: decodeMessage(value.message) };
+    return { image: Buffer.from(value.image), message: decodeMessage(value.message) };
   } catch (err) {
     logger.warn({ err }, "invalid menu media config");
 
@@ -208,8 +200,8 @@ const readActive = (value) => {
 const readSaved = (value) =>
   Array.isArray(value)
     ? value
-        .filter((entry) => typeof entry?.name === "string" && typeof entry?.image === "string")
-        .map(({ name, image }) => ({ name, image: Buffer.from(image, "base64") }))
+        .filter((entry) => typeof entry?.name === "string" && entry?.image != null)
+        .map(({ name, image }) => ({ name, image: Buffer.from(image) }))
     : [];
 
 const parseStored = (stored) => ({
@@ -222,31 +214,31 @@ const parseStored = (stored) => ({
   favicons: readSaved(stored?.favicons),
 });
 
-const serializeActive = (entry) =>
-  entry ? { image: entry.image.toString("base64"), message: encodeMessage(entry.message) } : null;
-
-const serializeSaved = (list) =>
-  list.map(({ name, image }) => ({ name, image: image.toString("base64") }));
-
-const serialize = (data) => ({
-  url: data.url,
-  title: data.title,
-  description: data.description,
-  thumbnail: serializeActive(data.thumbnail),
-  favicon: serializeActive(data.favicon),
-  thumbnails: serializeSaved(data.thumbnails),
-  favicons: serializeSaved(data.favicons),
-});
-
 class MenuManager {
   #data = parseStored(undefined);
 
-  async init() {
-    const stored = await readJson(FILE_PATH);
+  init() {
+    const profile = db.prepare("SELECT url, title, description FROM menu_profile WHERE id = 1").get();
+    const active = db.prepare("SELECT kind, image, message FROM menu_active_media").all();
+    const saved = db.prepare("SELECT kind, name, image FROM menu_saved_media ORDER BY id").all();
+
+    const activeMedia = Object.fromEntries(
+      active.map(({ kind, image, message }) => [kind, { image, message }]),
+    );
+
+    const stored = profile
+      ? {
+          ...profile,
+          thumbnail: activeMedia.thumbnail,
+          favicon: activeMedia.favicon,
+          thumbnails: saved.filter(({ kind }) => kind === "thumbnail"),
+          favicons: saved.filter(({ kind }) => kind === "favicon"),
+        }
+      : undefined;
 
     this.#data = parseStored(stored);
 
-    if (!stored) await this.#save();
+    if (!profile) this.#saveProfile();
   }
 
   getMainMenu(prefix = "") {
@@ -489,12 +481,55 @@ class MenuManager {
   }
 
   #commit(patch) {
+    const keys = Object.keys(patch);
+
     Object.assign(this.#data, patch);
-    this.#save();
+
+    transaction(() => {
+      if (keys.some((key) => key === "url" || key === "title" || key === "description")) {
+        this.#saveProfile();
+      }
+
+      for (const kind of ["thumbnail", "favicon"]) {
+        if (keys.includes(kind)) this.#saveActive(kind, patch[kind]);
+      }
+
+      if (keys.includes("thumbnails")) this.#saveSaved("thumbnail", this.#data.thumbnails);
+      if (keys.includes("favicons")) this.#saveSaved("favicon", this.#data.favicons);
+    });
   }
 
-  #save() {
-    return save(serialize(this.#data));
+  #saveProfile() {
+    db.prepare(
+      `INSERT INTO menu_profile (id, url, title, description) VALUES (1, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET url = excluded.url, title = excluded.title,
+       description = excluded.description,
+       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
+    ).run(this.#data.url, this.#data.title, this.#data.description);
+  }
+
+  #saveActive(kind, entry) {
+    if (!entry) {
+      db.prepare("DELETE FROM menu_active_media WHERE kind = ?").run(kind);
+
+      return;
+    }
+
+    db.prepare(
+      `INSERT INTO menu_active_media (kind, image, message) VALUES (?, ?, ?)
+       ON CONFLICT(kind) DO UPDATE SET image = excluded.image, message = excluded.message,
+       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
+    ).run(kind, entry.image, encodeMessage(entry.message));
+  }
+
+  #saveSaved(kind, list) {
+    db.prepare("DELETE FROM menu_saved_media WHERE kind = ?").run(kind);
+
+    const insert = db.prepare(
+      "INSERT INTO menu_saved_media (kind, name, image) VALUES (?, ?, ?)",
+    );
+
+    for (const { name, image } of list) insert.run(kind, name, image);
   }
 }
 

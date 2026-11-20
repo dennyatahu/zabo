@@ -1,6 +1,6 @@
 {
   "name": "zabo",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Fast & modern WhatsApp bot built with zapo-js. Lightweight, plugin-based, and ESM-only.",
   "keywords": [
     "whatsapp",
@@ -27,7 +27,7 @@
   "type": "module",
   "main": "src/index.js",
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.5.0"
   },
   "scripts": {
     "start": "node --env-file=.env src/index.js",

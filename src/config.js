@@ -40,5 +40,6 @@ export const config = Object.freeze({
     data: dataDir,
     plugins: resolve(import.meta.dirname, "plugins"),
     session: resolve(dataDir, "session.sqlite"),
+    database: resolve(dataDir, "database.sqlite"),
   }),
 });

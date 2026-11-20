@@ -67,6 +67,10 @@ Linking is only needed on the first run. Credentials are stored in `data/session
 > [!NOTE]
 > To switch methods on an already-linked account, stop the bot, delete `data/session.sqlite`, change `AUTH_METHOD`, and start again. If the device is unlinked from the phone, the bot re-links using the configured method.
 
+## Persistent Data
+
+Bot settings (prefixes, self mode, selective mode, and menu media) are stored in `data/database.sqlite` using `node:sqlite`. Tables and indexes are created automatically on first run. Delete that file to reset every setting to its default.
+
 ## Writing a Plugin
 
 Create any `.js` file under `src/plugins/<category>/` and restart the bot:

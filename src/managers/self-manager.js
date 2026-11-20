@@ -1,7 +1,4 @@
-import { join } from "node:path";
-
-import { config } from "../config.js";
-import { createJsonSaver, readJson } from "../utils/json-file.js";
+import { getSetting, setSetting } from "../core/database.js";
 import { fail, ok } from "../utils/result.js";
 
 const MESSAGES = Object.freeze({
@@ -11,17 +8,11 @@ const MESSAGES = Object.freeze({
   ALREADY_DISABLED: "Self mode is already off.",
 });
 
-const FILE_PATH = join(config.paths.data, "self.json");
-
-const save = createJsonSaver(FILE_PATH, "self");
-
 class SelfManager {
   #active = false;
 
-  async init() {
-    const data = await readJson(FILE_PATH);
-
-    this.#active = data?.isSelfActive === true;
+  init() {
+    this.#active = getSetting("self_mode");
   }
 
   get isActive() {
@@ -38,7 +29,7 @@ class SelfManager {
     }
 
     this.#active = active;
-    save({ isSelfActive: active });
+    setSetting("self_mode", active);
 
     return ok(active ? MESSAGES.ENABLED : MESSAGES.DISABLED);
   }
