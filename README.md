@@ -1,5 +1,12 @@
 <div align="center">
 
+<img src="https://cloud.yardansh.com/iny7FQ.png" alt="zabo banner" width="100%" />
+
+<br />
+<br />
+
+<img src="https://cloud.yardansh.com/Kbmh9u.png" alt="zabo logo" width="120" />
+
 # zabo
 
 **A fast, lightweight WhatsApp bot powered by [zapo-js](https://www.npmjs.com/package/zapo-js).**
@@ -9,6 +16,8 @@ Plugin-based · ESM-only · Persistent SQLite session
 [![Node.js](https://img.shields.io/badge/node-%E2%89%A520.19-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![zapo-js](https://img.shields.io/badge/powered%20by-zapo--js-25D366)](https://www.npmjs.com/package/zapo-js)
+
+[Highlights](#highlights) · [Quick Start](#quick-start) · [Linking](#linking-whatsapp) · [Plugins](#writing-a-plugin) · [Structure](#project-structure)
 
 </div>
 
@@ -43,6 +52,8 @@ Configure `.env`:
 | `OWNER`       | —       | Owner number(s), comma-separated. Owner commands work without a prefix.      |
 | `LOG_LEVEL`   | `info`  | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `silent`. |
 
+Run the bot:
+
 ```bash
 npm start      # start the bot
 npm run dev    # start with file watching
@@ -60,60 +71,6 @@ Linking is only needed on the first run. Credentials are stored in `data/session
 
 > [!NOTE]
 > To switch methods on an already-linked account, stop the bot, delete `data/session.sqlite`, change `AUTH_METHOD`, and start again. If the device is unlinked from the phone, the bot re-links using the configured method.
-
-## Commands
-
-Commands are case-insensitive. Prefix mode is **off** by default, and owner commands (plus `ping`) work without a prefix.
-
-| Command            | Access  | Description                                                        |
-| ------------------ | ------- | ------------------------------------------------------------------ |
-| `ping`, `p`        | Public  | Reply `pong!`, then edit the message with the measured latency.    |
-| `mem`              | Public  | Show Node.js memory usage.                                         |
-| `ut`, `uptime`     | Public  | Show how long the bot has been running.                            |
-| `menu`             | Public  | Browse the auto-generated menu.                                    |
-| `self on \| off`   | Owner   | Restrict the bot to the owner.                                     |
-| `prefix <flag>`    | Owner   | Manage prefixes: `--add`, `--del`, `--list`, `--on`, `--off`, `--reset`. |
-| `selective <flag>` | Owner   | Control selective replies in groups (see below).                   |
-| `! <code>`         | Owner   | Evaluate JavaScript.                                               |
-| `!! <code>`        | Owner   | Evaluate async JavaScript.                                         |
-| `$ <command>`      | Owner   | Run a shell command; long output is sent as a file.                |
-
-**Selective mode** sends the bot's reply only to the command sender instead of the whole group.
-
-```bash
-selective --on | --off [--all]                          # current group or all groups
-selective --only --set <cmd, cmd> [--to <numbers>]      # force selective for commands
-selective --only --del <cmd, cmd> [--to <numbers>]
-selective --only --list
-```
-
-`--to` accepts numbers, `@mentions`, or a replied user. Without it, replies are addressed to the sender.
-
-> [!WARNING]
-> `!`, `!!`, and `$` give full control of the host machine. Only add numbers you fully trust to `OWNER`.
-
-## Menu
-
-The menu is built from each plugin's `categories` and `commands`, so new plugins appear automatically. Settings are stored in `data/menu.json`.
-
-| Command                              | Access | Description                                      |
-| ------------------------------------ | ------ | ------------------------------------------------ |
-| `menu`                               | Public | Show the category list.                          |
-| `menu <category>` / `menu all`       | Public | Show commands in a category or all categories.   |
-| `menu --help`                        | Public | Show the full owner flag reference.              |
-| `menu --set` / `--get` / `--del`     | Owner  | Configure the preview URL, title, description, thumbnail, or favicon. |
-| `menu --save` / `--del`              | Owner  | Manage a library of saved thumbnails and favicons. |
-
-Owner examples:
-
-```bash
-menu --set --thumbnail <url>          # also accepts a replied image or image caption
-menu --set --url <url>
-menu --set --title <text>
-menu --set --desc <text>
-menu --save --thumbnail <url> --name <text>
-menu --save --list
-```
 
 ## Writing a Plugin
 
@@ -153,12 +110,6 @@ src/
 
 data/               # runtime state (auto-created, git-ignored)
 ```
-
-## Notes
-
-- Never commit `.env` or `data/`. `data/session.sqlite` contains your WhatsApp credentials.
-- `data/` is created automatically and holds the session, prefixes, self mode, selective mode, and menu settings.
-- Prefix mode starts **off**. Once enabled, the default prefixes are `.` and `/`, and can be changed with `prefix`.
 
 ## License
 
