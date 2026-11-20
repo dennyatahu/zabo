@@ -66,6 +66,4 @@ export const bindAuthEvents = (session, target) => {
   session.listen(target, "auth_passkey_required", ({ hasSigner }) => {
     logger.warn(`passkey required (signer configured: ${hasSigner})`);
   });
-
-  session.listen(target, "mutation", (event) => logger.info(event));
 };

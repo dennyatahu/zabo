@@ -11,10 +11,6 @@ class PluginManager {
   #plugins = [];
   #queue = Promise.resolve();
 
-  get map() {
-    return this.#commands;
-  }
-
   get array() {
     return this.#plugins;
   }

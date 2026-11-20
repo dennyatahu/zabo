@@ -1,17 +1,15 @@
 import { Readable } from "node:stream";
-import { getContentType, toUserJid, unwrapMessage, WaMediaTransferClient } from "zapo-js";
+import { getContentType, unwrapMessage, WaMediaTransferClient } from "zapo-js";
+
+import { isSelf } from "./is-self.js";
 
 const THUMBNAIL_MEDIA_TYPES = ["thumbnail-link", "image"];
 const MAC_MISMATCH = "media MAC mismatch";
 const NO_MEDIA = "message has no downloadable media";
 
-let mediaTransfer = new WaMediaTransferClient();
+const mediaTransfer = new WaMediaTransferClient();
 
-export const configureMediaTransfer = (options) => {
-  mediaTransfer = new WaMediaTransferClient(options);
-};
-
-const formatBytes = (bytes, type) => {
+const toOutput = (bytes, type) => {
   switch (type) {
     case "bytes":
       return bytes;
@@ -34,13 +32,6 @@ const parse = (raw) => {
   };
 };
 
-const isSelf = (client, jid) => {
-  if (!jid) return false;
-  const { meJid, meLid } = client.getCredentials() ?? {};
-  const user = toUserJid(jid);
-  return [meJid, meLid].some((me) => me && toUserJid(me) === user);
-};
-
 const downloadThumbnail = async ({
   mediaKey,
   thumbnailDirectPath: directPath,
@@ -50,10 +41,12 @@ const downloadThumbnail = async ({
 }) => {
   if (!mediaKey || !directPath) {
     if (!jpegThumbnail) throw new Error(NO_MEDIA);
+
     return Uint8Array.from(jpegThumbnail);
   }
 
   let failure;
+
   for (const mediaType of THUMBNAIL_MEDIA_TYPES) {
     try {
       return await mediaTransfer.downloadAndDecrypt({
@@ -65,9 +58,11 @@ const downloadThumbnail = async ({
       });
     } catch (error) {
       if (error?.message !== MAC_MISMATCH) throw error;
+
       failure = error;
     }
   }
+
   throw failure;
 };
 
@@ -75,13 +70,15 @@ const download = async (m, type) => {
   if (!m.message) throw new Error(NO_MEDIA);
 
   const { extendedTextMessage: extended } = unwrapMessage(m.message);
+
   if (extended?.mediaKey || extended?.jpegThumbnail) {
-    return formatBytes(await downloadThumbnail(extended), type);
+    return toOutput(await downloadThumbnail(extended), type);
   }
 
   const { message } = m.client;
+
   return type === "buffer" || type === "bytes"
-    ? formatBytes(await message.downloadBytes(m.message), type)
+    ? toOutput(await message.downloadBytes(m.message), type)
     : message.download(m.message);
 };
 
@@ -99,7 +96,7 @@ const bind = (target, client) =>
       download: (type) => download(target, type),
     }),
     "client",
-    { value: client },
+    { value: client, writable: true, configurable: true },
   );
 
 export const smsg = (event, client) => {

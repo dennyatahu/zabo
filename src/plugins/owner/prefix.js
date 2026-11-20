@@ -1,10 +1,11 @@
 const USAGE = [
   "Usage:",
-  "prefix add <prefix>",
-  "prefix del <prefix | number>",
-  "prefix list",
-  "prefix on | off",
-  "prefix reset",
+  "prefix --add <prefix>",
+  "prefix --del <prefix | number>",
+  "prefix --list",
+  "prefix --on",
+  "prefix --off",
+  "prefix --reset",
 ].join("\n");
 
 const formatList = ({ isActive, prefixList }) => {
@@ -18,12 +19,12 @@ const formatList = ({ isActive, prefixList }) => {
 };
 
 const ACTIONS = Object.freeze({
-  add: (manager, args) => manager.addPrefix(args[1]),
-  del: (manager, args) => manager.deletePrefix(args[1]),
-  list: (manager) => ({ data: formatList(manager.getConfig()) }),
-  on: (manager) => manager.enablePrefix(),
-  off: (manager) => manager.disablePrefix(),
-  reset: (manager) => manager.resetPrefix(),
+  "--add": (manager, args) => manager.addPrefix(args[1]),
+  "--del": (manager, args) => manager.deletePrefix(args[1]),
+  "--list": (manager) => ({ data: formatList(manager.getConfig()) }),
+  "--on": (manager) => manager.enablePrefix(),
+  "--off": (manager) => manager.disablePrefix(),
+  "--reset": (manager) => manager.resetPrefix(),
 });
 
 export default {
@@ -32,7 +33,7 @@ export default {
   categories: ["owner"],
   ownerOnly: true,
   options: {
-    bypassPrefix: true
+    bypassPrefix: true,
   },
 
   fn: async ({ m, args, prefixManager }) => {

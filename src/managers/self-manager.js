@@ -1,8 +1,8 @@
 import { join } from "node:path";
 
 import { config } from "../config.js";
-import { logger } from "../core/logger.js";
-import { readJson, writeJson } from "../utils/json-file.js";
+import { createJsonSaver, readJson } from "../utils/json-file.js";
+import { fail, ok } from "../utils/result.js";
 
 const MESSAGES = Object.freeze({
   ENABLED: "Self mode is on. Only the owner can use the bot.",
@@ -11,18 +11,16 @@ const MESSAGES = Object.freeze({
   ALREADY_DISABLED: "Self mode is already off.",
 });
 
-const ok = (data) => ({ data });
-const fail = (error) => ({ error });
+const FILE_PATH = join(config.paths.data, "self.json");
+
+const save = createJsonSaver(FILE_PATH, "self");
 
 class SelfManager {
   #active = false;
-  #filePath = undefined;
-  #queue = Promise.resolve();
 
   async init() {
-    this.#filePath = join(config.paths.data, "self.json");
+    const data = await readJson(FILE_PATH);
 
-    const data = await readJson(this.#filePath);
     this.#active = data?.isSelfActive === true;
   }
 
@@ -40,18 +38,9 @@ class SelfManager {
     }
 
     this.#active = active;
-    this.#save();
+    save({ isSelfActive: active });
 
     return ok(active ? MESSAGES.ENABLED : MESSAGES.DISABLED);
-  }
-
-  #save() {
-    const filePath = this.#filePath;
-    const payload = JSON.stringify({ isSelfActive: this.#active }, null, 2);
-
-    this.#queue = this.#queue
-      .then(() => writeJson(filePath, payload))
-      .catch((err) => logger.error({ err, path: filePath }, "self save failed"));
   }
 }
 

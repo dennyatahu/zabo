@@ -2,9 +2,10 @@ import { parentPort, workerData } from "node:worker_threads";
 
 import { Jimp, JimpMime, ResizeStrategy } from "jimp";
 
+import { FAVICON_SIZE } from "../constants/image.js";
+
 const THUMBNAIL_SIZE = 640;
 const PREVIEW_SIZE = 50;
-const FAVICON_SIZE = 48;
 const JPEG_QUALITY = 80;
 
 const read = async (buffer) => {

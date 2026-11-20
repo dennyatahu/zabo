@@ -1,8 +1,8 @@
 import { join } from "node:path";
 
 import { config } from "../config.js";
-import { logger } from "../core/logger.js";
-import { readJson, writeJson } from "../utils/json-file.js";
+import { createJsonSaver, readJson } from "../utils/json-file.js";
+import { fail, ok } from "../utils/result.js";
 import { pluginManager } from "./plugin-manager.js";
 
 const DEFAULT_PREFIXES = Object.freeze(["."]);
@@ -20,33 +20,31 @@ const MESSAGES = Object.freeze({
   RESET: "Prefix list was reset.",
 });
 
-const ok = (data) => ({ data });
-const fail = (error) => ({ error });
+const FILE_PATH = join(config.paths.data, "prefix.json");
+
+const save = createJsonSaver(FILE_PATH, "prefix");
 
 const isValidPrefix = (value) => typeof value === "string" && value.length > 0;
 
 class PrefixManager {
   #prefixes = [...DEFAULT_PREFIXES];
   #active = false;
-  #filePath = undefined;
-  #queue = Promise.resolve();
 
   async init() {
-    this.#filePath = join(config.paths.data, "prefix.json");
-    await this.#load();
-  }
+    const data = await readJson(FILE_PATH);
+    const prefixes = Array.isArray(data?.prefixList)
+      ? [...new Set(data.prefixList.filter(isValidPrefix))]
+      : [];
 
-  get isPrefixActive() {
-    return this.#active;
-  }
+    this.#active = data?.isPrefixActive === true;
+    this.#prefixes = prefixes.length ? prefixes : [...DEFAULT_PREFIXES];
 
-  get prefixList() {
-    return [...this.#prefixes];
+    if (!prefixes.length) await this.#save();
   }
 
   getConfig = () => ({
     isActive: this.#active,
-    prefixList: this.prefixList,
+    prefixList: [...this.#prefixes],
   });
 
   resolve = (input) => {
@@ -155,32 +153,8 @@ class PrefixManager {
     return { index: position - 1 };
   }
 
-  async #load() {
-    const data = await readJson(this.#filePath);
-
-    const prefixes = Array.isArray(data?.prefixList)
-      ? [...new Set(data.prefixList.filter(isValidPrefix))]
-      : [];
-
-    this.#active = data?.isPrefixActive === true;
-    this.#prefixes = prefixes.length ? prefixes : [...DEFAULT_PREFIXES];
-
-    if (!prefixes.length) this.#save();
-
-    await this.#queue;
-  }
-
   #save() {
-    const filePath = this.#filePath;
-    const payload = JSON.stringify(
-      { isPrefixActive: this.#active, prefixList: this.#prefixes },
-      null,
-      2,
-    );
-
-    this.#queue = this.#queue
-      .then(() => writeJson(filePath, payload))
-      .catch((err) => logger.error({ err, path: filePath }, "prefix save failed"));
+    return save({ isPrefixActive: this.#active, prefixList: this.#prefixes });
   }
 }
 

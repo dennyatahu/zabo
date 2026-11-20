@@ -1,51 +1,7 @@
-import util from "node:util";
-import { createRequire } from "node:module";
-import * as zapo from "zapo-js";
+import { createEvalPlugin } from "../../lib/create-eval-plugin.js";
 
-const require = createRequire(import.meta.url);
-
-export default {
+export default createEvalPlugin({
   name: "eval async",
-  commands: ["!!"],
-  categories: ["owner"],
-  ownerOnly: true,
-
-  options: {
-    bypassPrefix: true,
-  },
-
-  fn: async (ctx) => {
-    const {
-      client,
-      jid,
-      m,
-      text,
-      store,
-      command,
-      prefix,
-      prefixManager,
-      pluginManager,
-      selfManager,
-      q,
-    } = ctx;
-
-    const code = text?.trimStart();
-
-    console.log(code);
-
-    if (!code) return m.reply("where is the js code?");
-
-    try {
-      let result = await eval(`(async () => { ${code} })()`);
-
-      if (typeof result !== "string") {
-        result = util.inspect(result);
-      }
-
-      return await (q ?? m).reply(result);
-    } catch (e) {
-      console.log(e);
-      return await m.reply(e.message);
-    }
-  },
-};
+  trigger: "!!",
+  wrap: (code) => `(async () => { ${code} })()`,
+});

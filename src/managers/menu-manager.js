@@ -3,9 +3,11 @@ import { join } from "node:path";
 import { proto } from "zapo-js";
 
 import { config } from "../config.js";
+import { FAVICON_SIZE } from "../constants/image.js";
 import { logger } from "../core/logger.js";
 import { processImage } from "../lib/image-processor.js";
-import { readJson, writeJson } from "../utils/json-file.js";
+import { createJsonSaver, readJson } from "../utils/json-file.js";
+import { fail, ok } from "../utils/result.js";
 import { pluginManager } from "./plugin-manager.js";
 
 const DEFAULTS = Object.freeze({
@@ -33,7 +35,6 @@ const THUMBNAIL_FIELDS = Object.freeze([
 
 const FAVICON_FIELDS = Object.freeze(THUMBNAIL_FIELDS.filter((field) => field !== "jpegThumbnail"));
 
-const FAVICON_SIZE = 48;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_NAME_LENGTH = 32;
@@ -55,8 +56,9 @@ const MESSAGES = Object.freeze({
 
 class UserError extends Error {}
 
-const ok = (data) => ({ data });
-const fail = (error) => ({ error });
+const FILE_PATH = join(config.paths.data, "menu.json");
+
+const save = createJsonSaver(FILE_PATH, "menu");
 
 const byLocale = (a, b) => a.localeCompare(b);
 
@@ -135,10 +137,6 @@ const runTask = async (task, buffer) => {
   }
 };
 
-const prepareThumbnail = async (buffer) => Buffer.from((await runTask("thumbnail", buffer)).data);
-
-const prepareFavicon = async (buffer) => Buffer.from((await runTask("favicon", buffer)).data);
-
 const toMediaFields = (media, width, height) => ({
   thumbnailDirectPath: media.directPath,
   thumbnailEncSha256: media.fileEncSha256,
@@ -176,18 +174,22 @@ const KINDS = Object.freeze({
   thumbnail: {
     label: "Thumbnail",
     plural: "thumbnails",
-    prepare: prepareThumbnail,
     build: buildThumbnail,
   },
   favicon: {
     label: "Favicon",
     plural: "favicons",
-    prepare: prepareFavicon,
     build: buildFavicon,
   },
 });
 
-const normalizeImage = async (kind, input) => KINDS[kind].prepare(await toBuffer(input));
+const normalizeImage = async (kind, input) =>
+  Buffer.from((await runTask(kind, await toBuffer(input))).data);
+
+const categoryHeader = (category) => `▨  *${category}*`;
+
+const categoryText = ({ category, rows }) =>
+  `${categoryHeader(category)}\n${[...rows].sort(byLocale).join("\n")}`;
 
 const readText = (value, fallback) => (typeof value === "string" ? value : fallback);
 
@@ -237,35 +239,14 @@ const serialize = (data) => ({
 });
 
 class MenuManager {
-  #filePath = undefined;
   #data = parseStored(undefined);
-  #queue = Promise.resolve();
 
   async init() {
-    this.#filePath = join(config.paths.data, "menu.json");
-
-    const stored = await readJson(this.#filePath);
+    const stored = await readJson(FILE_PATH);
 
     this.#data = parseStored(stored);
 
-    if (!stored) {
-      this.#save();
-      await this.#queue;
-    }
-  }
-
-  getConfig() {
-    const { url, title, description, thumbnail, favicon, thumbnails, favicons } = this.#data;
-
-    return {
-      url,
-      title,
-      description,
-      hasThumbnail: Boolean(thumbnail),
-      hasFavicon: Boolean(favicon),
-      savedThumbnails: thumbnails.length,
-      savedFavicons: favicons.length,
-    };
+    if (!stored) await this.#save();
   }
 
   getMainMenu(prefix = "") {
@@ -276,7 +257,7 @@ class MenuManager {
     return ok(
       [
         "menu categories list",
-        ...[...groups.values()].map(({ category }) => this.#categoryHeader(category)),
+        ...[...groups.values()].map(({ category }) => categoryHeader(category)),
       ].join("\n"),
     );
   }
@@ -286,7 +267,7 @@ class MenuManager {
 
     if (!groups.size) return fail(MESSAGES.NO_CATEGORIES);
 
-    return ok([...groups.values()].map((group) => this.#categoryText(group)).join("\n\n"));
+    return ok([...groups.values()].map(categoryText).join("\n\n"));
   }
 
   getCategoryMenu(input, prefix = "") {
@@ -296,7 +277,7 @@ class MenuManager {
 
     const group = this.#groups(prefix).get(key);
 
-    return group ? ok(this.#categoryText(group)) : fail(`Category \`${input.trim()}\` not found.`);
+    return group ? ok(categoryText(group)) : fail(`Category \`${input.trim()}\` not found.`);
   }
 
   compose(text) {
@@ -505,26 +486,13 @@ class MenuManager {
     return new Map([...grouped].sort(([a], [b]) => byLocale(a, b)));
   }
 
-  #categoryHeader(category) {
-    return `▨  *${category}*`;
-  }
-
-  #categoryText({ category, rows }) {
-    return `${this.#categoryHeader(category)}\n${[...rows].sort(byLocale).join("\n")}`;
-  }
-
   #commit(patch) {
     Object.assign(this.#data, patch);
     this.#save();
   }
 
   #save() {
-    const filePath = this.#filePath;
-    const payload = JSON.stringify(serialize(this.#data), null, 2);
-
-    this.#queue = this.#queue
-      .then(() => writeJson(filePath, payload))
-      .catch((err) => logger.error({ err, path: filePath }, "menu save failed"));
+    return save(serialize(this.#data));
   }
 }
 

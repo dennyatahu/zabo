@@ -9,7 +9,7 @@ export default {
   categories: ["owner"],
   ownerOnly: true,
   options: {
-    bypassPrefix: true
+    bypassPrefix: true,
   },
 
   fn: async ({ m, args, selfManager }) => {

@@ -1,12 +1,14 @@
 import { WaClient } from "zapo-js";
 
+import { config } from "../config.js";
+import { selectiveGroupSend } from "../lib/selective-group-send.js";
 import { store } from "./store.js";
 
-export const createClient = (logger) => {
-  return new WaClient(
+export const createClient = (logger) =>
+  new WaClient(
     {
       store,
-      sessionId: "default",
+      sessionId: config.sessionId,
       deviceBrowser: "chrome",
       iqTimeoutMs: 15000,
       keepAliveIntervalMs: 15000,
@@ -15,6 +17,7 @@ export const createClient = (logger) => {
       messageAckTimeoutMs: 10000,
       messageMaxAttempts: 3,
       messageRetryDelayMs: 750,
+      plugins: [selectiveGroupSend],
       markOnlineOnConnect: true,
       recoverFromClientTooOld: true,
       history: {
@@ -28,4 +31,3 @@ export const createClient = (logger) => {
     },
     logger,
   );
-};

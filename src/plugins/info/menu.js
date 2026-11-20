@@ -1,5 +1,6 @@
 import { isOwner } from "../../lib/owner.js";
 import { parseFlags } from "../../utils/parse-flags.js";
+import { fail, ok } from "../../utils/result.js";
 
 const ACTIONS = Object.freeze(["set", "get", "del", "save"]);
 const MEDIA_KINDS = Object.freeze(["thumbnail", "favicon"]);
@@ -18,9 +19,6 @@ const TEXT_FLAGS = Object.freeze({
 });
 
 const react = (m, emoji) => Promise.resolve(m.react(emoji)).catch(() => undefined);
-
-const ok = (data) => ({ data });
-const fail = (error) => ({ error });
 
 const buildHelp = (prefix) =>
   [
@@ -156,6 +154,36 @@ const HANDLERS = Object.freeze({
   save: handleSave,
 });
 
+const runOwnerAction = async (action, context) => {
+  const { m } = context;
+
+  if (!isOwner(m)) {
+    await react(m, FAILURE);
+
+    return m.reply(OWNER_ONLY);
+  }
+
+  let result;
+
+  try {
+    result = await HANDLERS[action](context);
+  } catch (err) {
+    await react(m, FAILURE);
+
+    return m.reply(`Failed: ${err.message}`);
+  }
+
+  if (result?.error) {
+    await react(m, FAILURE);
+
+    return m.reply(result.error);
+  }
+
+  await react(m, SUCCESS);
+
+  return result && !SILENT_ACTIONS.has(action) ? m.reply(result.data) : undefined;
+};
+
 const browse = (menuManager, positional, prefix) => {
   if (!positional) return menuManager.getMainMenu(prefix);
   if (positional.toLowerCase() === "all") return menuManager.getAllMenu(prefix);
@@ -168,7 +196,7 @@ export default {
   commands: ["menu"],
   categories: ["info"],
 
-  fn: async ({ client, jid, m, q, prefix, text, menuManager }) => {
+  fn: async ({ client, jid, m, prefix, text, menuManager }) => {
     const label = prefix ?? "";
     const { positional, flags } = parseFlags(text);
 
@@ -177,31 +205,7 @@ export default {
     const action = ACTIONS.find((name) => flags.has(name));
 
     if (action) {
-      if (!isOwner(m)) {
-        await react(m, FAILURE);
-
-        return m.reply(OWNER_ONLY);
-      }
-
-      let result;
-
-      try {
-        result = await HANDLERS[action]({ client, jid, m, q, flags, prefix: label, menuManager });
-      } catch (err) {
-        await react(m, FAILURE);
-
-        return m.reply(`Failed: ${err.message}`);
-      }
-
-      if (result?.error) {
-        await react(m, FAILURE);
-
-        return m.reply(result.error);
-      }
-
-      await react(m, SUCCESS);
-
-      return result && !SILENT_ACTIONS.has(action) ? m.reply(result.data) : undefined;
+      return runOwnerAction(action, { client, jid, m, flags, prefix: label, menuManager });
     }
 
     if (flags.size) return m.reply(buildHelp(label));

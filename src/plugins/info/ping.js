@@ -3,7 +3,7 @@ export default {
   commands: ["p", "ping"],
   categories: ["info"],
   options: {
-    bypassPrefix: true
+    bypassPrefix: true,
   },
 
   fn: async ({ client, jid, m }) => {

@@ -29,6 +29,7 @@ mkdirSync(dataDir, { recursive: true });
 export const config = Object.freeze({
   authMethod,
   botPn,
+  sessionId: "default",
   owners: Object.freeze(
     (getEnv("OWNER") ?? "")
       .split(",")
