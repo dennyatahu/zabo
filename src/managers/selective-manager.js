@@ -70,7 +70,9 @@ class SelectiveManager {
 
     this.#save();
 
-    return ok(`Selective to: ${names.join(", ")} -> ${ids.map((id) => `@${id}`).join(", ")}.`);
+    return ok(
+      `Selective targets added: ${names.join(", ")} -> ${ids.map((id) => `@${id}`).join(", ")}.`,
+    );
   };
 
   deleteTargets = (names, ids) => {
@@ -86,11 +88,11 @@ class SelectiveManager {
       if (!current.size) this.#targets.delete(name);
     }
 
-    if (!removed) return fail("No matching selective target found.");
+    if (!removed) return fail("No matching selective targets found.");
 
     this.#save();
 
-    return ok(`Selective to: removed ${removed} target(s).`);
+    return ok(`Selective targets removed: ${removed}.`);
   };
 
   get onlyList() {
@@ -104,7 +106,7 @@ class SelectiveManager {
     this.#save();
 
     return added.length
-      ? ok(`Selective only: added ${added.join(", ")}.`)
+      ? ok(`Selective only added: ${added.join(", ")}.`)
       : fail("Those commands are already in the selective only list.");
   };
 
@@ -115,7 +117,7 @@ class SelectiveManager {
 
     this.#save();
 
-    return ok(`Selective only: removed ${removed.join(", ")}.`);
+    return ok(`Selective only removed: ${removed.join(", ")}.`);
   };
 
   enable = (jid) => this.#setGroup(jid, true);

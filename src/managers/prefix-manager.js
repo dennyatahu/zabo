@@ -145,8 +145,10 @@ class PrefixManager {
     if (position < 1) return fail(MESSAGES.INVALID_INDEX);
 
     if (position > this.#prefixes.length) {
+      const count = this.#prefixes.length;
+
       return fail(
-        `Index ${position} is out of range. The list has ${this.#prefixes.length} prefix(es).`,
+        `Index ${position} is out of range. The list has ${count} ${count === 1 ? "prefix" : "prefixes"}.`,
       );
     }
 

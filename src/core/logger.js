@@ -28,8 +28,6 @@ const hasKeys = (value) =>
   !(value instanceof Error) &&
   Object.keys(value).length > 0;
 
-// zabo uses pino's `(context, message)` order, while zapo-js uses
-// `(message, context)`. Support both so context and errors are never dropped.
 const emit = (stream, method, first, second) => {
   if (typeof first === "string") {
     if (hasKeys(second)) {

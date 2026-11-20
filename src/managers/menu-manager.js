@@ -186,7 +186,7 @@ const KINDS = Object.freeze({
 const normalizeImage = async (kind, input) =>
   Buffer.from((await runTask(kind, await toBuffer(input))).data);
 
-const categoryHeader = (category) => `▨  *${category}*`;
+const categoryHeader = (category) => `▸ *${category}*`;
 
 const categoryText = ({ category, rows }) =>
   `${categoryHeader(category)}\n${[...rows].sort(byLocale).join("\n")}`;
@@ -256,7 +256,9 @@ class MenuManager {
 
     return ok(
       [
-        "menu categories list",
+        "*Menu*",
+        `▸ Categories: ${groups.size}`,
+        "",
         ...[...groups.values()].map(({ category }) => categoryHeader(category)),
       ].join("\n"),
     );
@@ -403,7 +405,7 @@ class MenuManager {
         const list = this.#data[plural];
         const rows = list.length
           ? list.map(({ name }, position) => `  ${position + 1}. ${name}`).join("\n")
-          : "  (empty)";
+          : "  -";
 
         return `*Saved ${label}s*\n${rows}`;
       })
@@ -431,7 +433,7 @@ class MenuManager {
 
     if (position > list.length) {
       throw new UserError(
-        `Index ${position} is out of range. The list has ${list.length} ${label.toLowerCase()}(s).`,
+        `Index ${position} is out of range. The list has ${list.length} ${label.toLowerCase()}${list.length === 1 ? "" : "s"}.`,
       );
     }
 

@@ -17,7 +17,17 @@ export default {
 
     if (!action) {
       const status = selfManager.isActive ? "on" : "off";
-      return m.reply(`Usage: self on | off\nCurrent: ${status}`);
+
+      return m.reply(
+        [
+          "*Self Mode*",
+          `▸ Status: ${status}`,
+          "",
+          "*Usage*",
+          "▸ self on",
+          "▸ self off",
+        ].join("\n"),
+      );
     }
 
     const { data, error } = action(selfManager);

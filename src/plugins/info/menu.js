@@ -6,7 +6,7 @@ const ACTIONS = Object.freeze(["set", "get", "del", "save"]);
 const MEDIA_KINDS = Object.freeze(["thumbnail", "favicon"]);
 const IMAGE_CONTENT = "imageMessage";
 const THUMBNAIL_FILE = "thumbnail-buffer.json";
-const OWNER_ONLY = "Only the owner can use this option.";
+const OWNER_ONLY = "*Owner Only*\n▸ Only the owner can use this option.";
 const SUCCESS = "✅";
 const FAILURE = "❌";
 const SILENT_ACTIONS = new Set(["set", "del"]);
@@ -20,40 +20,43 @@ const TEXT_FLAGS = Object.freeze({
 
 const react = (m, emoji) => Promise.resolve(m.react(emoji)).catch(() => undefined);
 
-const buildHelp = (prefix) =>
-  [
+const buildHelp = (prefix) => {
+  const row = (command) => `▸ ${prefix}${command}`;
+
+  return [
     "*Menu Guide*",
-    `${prefix}menu`,
-    `${prefix}menu <category>`,
-    `${prefix}menu all`,
+    row("menu"),
+    row("menu <category>"),
+    row("menu all"),
     "",
-    "*Owner only*",
-    `${prefix}menu --set --thumbnail <url>`,
-    `${prefix}menu --set --thumbnail (reply to an image, or send it with this caption)`,
-    `${prefix}menu --set --thumbnail --name <text>`,
-    `${prefix}menu --set --thumbnail --index <number>`,
-    `${prefix}menu --set --favicon <url>`,
-    `${prefix}menu --set --favicon --name <text> | --index <number>`,
-    `${prefix}menu --set --url <url>`,
-    `${prefix}menu --set --title <text>`,
-    `${prefix}menu --set --desc <text>`,
+    "*Owner Only*",
+    row("menu --set --thumbnail <url>"),
+    row("menu --set --thumbnail (reply to an image, or send it with this caption)"),
+    row("menu --set --thumbnail --name <text>"),
+    row("menu --set --thumbnail --index <number>"),
+    row("menu --set --favicon <url>"),
+    row("menu --set --favicon --name <text> | --index <number>"),
+    row("menu --set --url <url>"),
+    row("menu --set --title <text>"),
+    row("menu --set --desc <text>"),
     "",
-    `${prefix}menu --get --thumbnail`,
-    `${prefix}menu --get --url`,
-    `${prefix}menu --get --title`,
-    `${prefix}menu --get --desc`,
+    row("menu --get --thumbnail"),
+    row("menu --get --url"),
+    row("menu --get --title"),
+    row("menu --get --desc"),
     "",
-    `${prefix}menu --del --url`,
-    `${prefix}menu --del --title`,
-    `${prefix}menu --del --desc`,
-    `${prefix}menu --del --thumbnail <index | name>`,
-    `${prefix}menu --del --favicon <index | name>`,
+    row("menu --del --url"),
+    row("menu --del --title"),
+    row("menu --del --desc"),
+    row("menu --del --thumbnail <index | name>"),
+    row("menu --del --favicon <index | name>"),
     "",
-    `${prefix}menu --save --thumbnail <url> --name <text>`,
-    `${prefix}menu --save --thumbnail --name <text> (reply to an image, or use it as the caption)`,
-    `${prefix}menu --save --favicon <url> --name <text>`,
-    `${prefix}menu --save --list [--thumbnail | --favicon]`,
+    row("menu --save --thumbnail <url> --name <text>"),
+    row("menu --save --thumbnail --name <text> (reply to an image, or use it as the caption)"),
+    row("menu --save --favicon <url> --name <text>"),
+    row("menu --save --list [--thumbnail | --favicon]"),
   ].join("\n");
+};
 
 const findKind = (flags) => MEDIA_KINDS.find((kind) => flags.has(kind));
 
@@ -170,7 +173,7 @@ const runOwnerAction = async (action, context) => {
   } catch (err) {
     await react(m, FAILURE);
 
-    return m.reply(`Failed: ${err.message}`);
+    return m.reply(`*Error*\n▸ ${err.message}`);
   }
 
   if (result?.error) {

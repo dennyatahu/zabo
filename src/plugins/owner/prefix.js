@@ -1,20 +1,22 @@
 const USAGE = [
-  "Usage:",
-  "prefix --add <prefix>",
-  "prefix --del <prefix | number>",
-  "prefix --list",
-  "prefix --on",
-  "prefix --off",
-  "prefix --reset",
+  "*Usage*",
+  "▸ prefix --add <prefix>",
+  "▸ prefix --del <prefix | number>",
+  "▸ prefix --list",
+  "▸ prefix --on",
+  "▸ prefix --off",
+  "▸ prefix --reset",
 ].join("\n");
 
 const formatList = ({ isActive, prefixList }) => {
-  const items = prefixList.map((item, index) => `  ${index + 1}: [ ${item} ],`).join("\n");
+  const items = prefixList.map((item, index) => `  ${index + 1}. \`${item}\``).join("\n");
 
   return [
     "*Prefix List*",
-    `Status: ${isActive ? "on" : "off"}`,
-    `\`\`\`prefix: {\n${items}\n}\`\`\``,
+    `▸ Status: ${isActive ? "on" : "off"}`,
+    `▸ Total: ${prefixList.length}`,
+    "",
+    items,
   ].join("\n");
 };
 

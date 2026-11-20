@@ -5,5 +5,5 @@ export default {
   commands: ["ut", "uptime"],
   categories: ["info"],
 
-  fn: async ({ m }) => m.reply(`*Uptime*\n▸ ${formatUptime(process.uptime())}`),
+  fn: async ({ m }) => m.reply(`*Uptime*\n▸ Running for: ${formatUptime(process.uptime())}`),
 };

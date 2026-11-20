@@ -18,7 +18,7 @@ export default {
   fn: async ({ m, text, client, jid }) => {
     const command = text?.trim();
 
-    if (!command) return m.reply("where is the command?");
+    if (!command) return m.reply("*Usage*\n▸ $ <command>");
 
     let output;
     let fileName = "shell-output.txt";
@@ -29,7 +29,7 @@ export default {
         maxBuffer: MAX_BUFFER_BYTES,
       });
 
-      output = (stdout || stderr || "done.").trim();
+      output = (stdout || stderr || "Done.").trim();
     } catch (err) {
       output = `${err.stdout || ""}${err.stderr || err.message}`.trim();
       fileName = "shell-error.txt";

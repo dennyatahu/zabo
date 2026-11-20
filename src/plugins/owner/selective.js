@@ -7,21 +7,24 @@ const SEPARATOR = /[\s,]+/;
 
 const buildUsage = ({ isActive, isGlobalActive }, jid) =>
   [
-    "Usage:",
-    "selective --on | --off [--all]",
-    "selective --only --set <cmd, cmd> [--to ...]",
-    "selective --only --del <cmd, cmd> [--to ...]",
-    "selective --only --list",
-    `Current: ${isActive(jid) ? "on" : "off"} (all groups: ${isGlobalActive ? "on" : "off"})`,
+    "*Selective*",
+    `▸ Status: ${isActive(jid) ? "on" : "off"}`,
+    `▸ All groups: ${isGlobalActive ? "on" : "off"}`,
+    "",
+    "*Usage*",
+    "▸ selective --on | --off [--all]",
+    "▸ selective --only --set <cmd, cmd> [--to ...]",
+    "▸ selective --only --del <cmd, cmd> [--to ...]",
+    "▸ selective --only --list",
   ].join("\n");
 
 const ONLY_USAGE = [
-  "Usage:",
-  "selective --only --set <cmd, cmd>",
-  "selective --only --set <cmd, cmd> --to <number | @mention>",
-  "selective --only --set <cmd, cmd> --to (reply a user)",
-  "selective --only --del <cmd, cmd> [--to ...]",
-  "selective --only --list",
+  "*Usage*",
+  "▸ selective --only --set <cmd, cmd>",
+  "▸ selective --only --set <cmd, cmd> --to <number | @mention>",
+  "▸ selective --only --set <cmd, cmd> --to (reply a user)",
+  "▸ selective --only --del <cmd, cmd> [--to ...]",
+  "▸ selective --only --list",
 ].join("\n");
 
 const toggle = (single, all) => ({ m, rest, jid, selectiveManager }) => {
@@ -97,7 +100,7 @@ const editList = ({ m, selectiveManager, pluginManager }, isSet, value) => {
   const { names, missing, empty } = resolveNames(commandText, pluginManager);
 
   if (empty) return m.reply(ONLY_USAGE);
-  if (missing.length) return m.reply(`Command not found: ${missing.join(", ")}`);
+  if (missing.length) return m.reply(`Command not found: ${missing.join(", ")}.`);
 
   if (!match) {
     const { data, error } = isSet
@@ -109,8 +112,8 @@ const editList = ({ m, selectiveManager, pluginManager }, isSet, value) => {
 
   const { ids, invalid } = resolveIds(value.slice(match.index + match[0].length), m);
 
-  if (invalid.length) return m.reply(`Invalid target: ${invalid.join(", ")}`);
-  if (!ids.length) return m.reply("Who? Reply to a user or add numbers / @mentions after --to.");
+  if (invalid.length) return m.reply(`Invalid target: ${invalid.join(", ")}.`);
+  if (!ids.length) return m.reply("Reply to a user or provide numbers/@mentions after --to.");
 
   const { data, error } = isSet
     ? selectiveManager.setTargets(names, ids)

@@ -36,7 +36,7 @@ export const createEvalPlugin = ({ name, trigger, wrap = (code) => code }) => ({
 
     const code = text?.trimStart();
 
-    if (!code) return m.reply("where is the js code?");
+    if (!code) return m.reply(`*Usage*\n▸ ${trigger} <code>`);
 
     try {
       const result = await eval(wrap(code));
@@ -45,7 +45,7 @@ export const createEvalPlugin = ({ name, trigger, wrap = (code) => code }) => ({
     } catch (err) {
       logger.error({ err, command: trigger }, "eval failed");
 
-      return await m.reply(err.message);
+      return await m.reply(`*Error*\n▸ ${err.message}`);
     }
   },
 });
