@@ -32,6 +32,14 @@ const parse = (raw) => {
   };
 };
 
+// Incoming proto messages expose `mentionedJid` (singular). Newer helpers may
+// normalize it to `mentionedJids`, so accept both forms.
+const mentionsOf = (contextInfo) => {
+  const raw = contextInfo?.mentionedJid ?? contextInfo?.mentionedJids ?? [];
+
+  return Array.isArray(raw) ? [...raw] : raw ? [raw] : [];
+};
+
 const downloadThumbnail = async ({
   mediaKey,
   thumbnailDirectPath: directPath,
@@ -102,7 +110,7 @@ const bind = (target, client) =>
 export const smsg = (event, client) => {
   const { contextInfo, ...fields } = parse(event?.message);
   const m = bind(
-    { ...event, ...fields, mentions: [...(contextInfo?.mentionedJids ?? [])] },
+    { ...event, ...fields, mentions: mentionsOf(contextInfo) },
     client,
   );
   const quoted = contextInfo?.quotedMessage;

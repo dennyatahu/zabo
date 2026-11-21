@@ -1,4 +1,4 @@
-import { isLockTarget } from "../../lib/lock-target.js";
+import { isLockTarget, LOCK_TARGET_ERROR } from "../../lib/lock-target.js";
 import { buildGuide } from "../../utils/guide.js";
 
 const GUIDE = {
@@ -28,7 +28,7 @@ export default {
   fn: async ({ m, args, lockManager }) => {
     if (!args.length && !m.mentions?.length) return m.reply(buildGuide(GUIDE));
 
-    if (!isLockTarget(m, args)) return;
+    if (!isLockTarget(m, args)) return m.reply(LOCK_TARGET_ERROR);
 
     const { data, error } = lockManager.disable();
 
