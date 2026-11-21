@@ -76,22 +76,24 @@ Bot settings (prefixes, self mode, selective mode, and menu media) are stored in
 
 Owner commands work without a prefix. Add `-h` at the end of any of them to show its guide.
 
-| Command                              | What it does                                              |
-| ------------------------------------ | --------------------------------------------------------- |
-| `prefix`                             | Show the prefix status and list.                          |
-| `prefix + <prefix>` / `- <prefix \| no>` | Add or delete a prefix.                                   |
-| `prefix on` / `off` / `reset`        | Toggle prefix mode or restore the default list.           |
-| `plugin`                             | List plugin files and their commands.                     |
-| `plugin + [name]` / `- <cmd>`        | Save a plugin from a reply, or delete one.                |
-| `plugin <cmd> [text]`                | Send a plugin as a file, or as text.                      |
-| `selective`                          | Show the status and the selective lists.                  |
-| `selective on` / `off` [`all`]       | Toggle selective mode for this group or every group.      |
-| `selective + <cmd, cmd> [@user]`     | Add commands, or targets for those commands.              |
-| `selective - <cmd, cmd> [@user]`     | Remove commands, or targets for those commands.           |
-| `menu thumb` / `fav` ...             | Set, export, save, list, or delete menu images.           |
-| `menu url` / `title` / `desc` [value] | Show, set, or clear (`-`) the menu link preview text.     |
+| Command                                      | What it does                                         |
+| -------------------------------------------- | ---------------------------------------------------- |
+| `prefix list`                                | Show the prefix status and list.                     |
+| `prefix add <prefix>` / `del <prefix \| no>`  | Add or delete a prefix.                              |
+| `prefix on` / `off` / `reset`                | Toggle prefix mode or restore the default list.      |
+| `plugin list`                                | List plugin files and their commands.                |
+| `plugin add [name]` / `del <cmd>`            | Save a plugin from a reply, or delete one.           |
+| `plugin get <cmd> [text]`                    | Send a plugin as a file, or as text.                 |
+| `selective list`                             | Show the status and the selective lists.             |
+| `selective on` / `off` [`all`]               | Toggle selective mode for this group or every group. |
+| `selective only [del] <cmd, cmd>`            | Add or remove selective commands.                    |
+| `selective to [del] <cmd, cmd> <@user>`      | Add or remove extra receivers for commands.          |
+| `menu set` / `get` / `del` `thumb` / `fav`   | Set, export, or delete menu images.                  |
+| `menu save thumb` / `fav` [`url`] [`name`]   | Save an image to the library.                        |
+| `menu saved` [`thumb` / `fav`]               | List the saved images.                               |
+| `menu set` / `get` / `del` `url` / `title` / `desc` | Change, show, or clear the menu link preview text. |
 
-Examples: `prefix + #`, `plugin ping text`, `selective + ping @628123456789`, `menu thumb save beach`, `selective -h`.
+Examples: `prefix add #`, `plugin get ping text`, `selective to ping @628123456789`, `menu save thumb beach`, `selective -h`.
 
 ## Writing a Plugin
 

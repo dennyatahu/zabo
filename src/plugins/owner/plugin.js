@@ -16,15 +16,15 @@ const GUIDE = {
   groups: [
     {
       rows: [
-        ["plugin", "List all plugin files and their commands."],
-        ["plugin + [name]", "Save a plugin from the replied code or file."],
-        ["plugin - <cmd>", "Delete the plugin that owns a command."],
-        ["plugin <cmd>", "Send the plugin file."],
-        ["plugin <cmd> text", "Send the plugin code as a message."],
+        ["plugin list", "List all plugin files and their commands."],
+        ["plugin add [name]", "Save a plugin from the replied code or file."],
+        ["plugin del <cmd>", "Delete the plugin that owns a command."],
+        ["plugin get <cmd>", "Send the plugin file."],
+        ["plugin get <cmd> text", "Send the plugin code as a message."],
       ],
     },
   ],
-  examples: ["plugin + ping", "plugin - ping", "plugin ping text"],
+  examples: ["plugin add ping", "plugin del ping", "plugin get ping text"],
   notes: [
     "Reply to a message with the code, or to a .js file, when adding.",
     "Without a name, the file name is used. The folder comes from the plugin category.",
@@ -167,14 +167,18 @@ const list = async ({ pluginManager }) => {
   return lines.join("\n");
 };
 
-const get = async ({ command, value, pluginManager }) => {
+const get = async ({ value, pluginManager }) => {
+  const { first: command, rest } = splitString(value);
+
+  if (!command) throw new Error("Specify the command of the plugin to get.");
+
   const found = await locate(command, pluginManager);
 
   if (!found) throw new Error(`No plugin found for command \`${command}\`.`);
 
   const source = await readFile(found.path, "utf8");
 
-  if (splitString(value).first?.toLowerCase() === "text") return source;
+  if (splitString(rest).first?.toLowerCase() === "text") return source;
 
   return {
     type: "document",
@@ -184,7 +188,7 @@ const get = async ({ command, value, pluginManager }) => {
   };
 };
 
-const ACTIONS = Object.freeze({ "+": add, "-": del });
+const ACTIONS = Object.freeze({ add, del, list, get });
 
 export default {
   name: "plugin",
@@ -198,17 +202,17 @@ export default {
   fn: async (ctx) => {
     const { m, text } = ctx;
 
-    if (isHelp(text)) return m.reply(buildGuide(GUIDE));
+    if (!text || isHelp(text)) return m.reply(buildGuide(GUIDE));
 
     const { first, rest } = splitString(text);
-    const head = first?.toLowerCase();
+    const key = first.toLowerCase();
+
+    if (!Object.hasOwn(ACTIONS, key)) {
+      return m.reply(buildError(`Unknown option \`${first}\`.`, "plugin"));
+    }
 
     try {
-      let result;
-
-      if (head === undefined) result = await list(ctx);
-      else if (Object.hasOwn(ACTIONS, head)) result = await ACTIONS[head]({ ...ctx, value: rest });
-      else result = await get({ ...ctx, command: head, value: rest });
+      const result = await ACTIONS[key]({ ...ctx, value: rest });
 
       return result ? m.reply(result) : undefined;
     } catch (err) {

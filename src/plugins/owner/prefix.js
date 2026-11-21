@@ -7,16 +7,16 @@ const GUIDE = {
   groups: [
     {
       rows: [
-        ["prefix", "Show the status and the prefix list."],
-        ["prefix + <prefix>", "Add a prefix."],
-        ["prefix - <prefix | number>", "Delete a prefix by its text or list number."],
+        ["prefix list", "Show the status and the prefix list."],
+        ["prefix add <prefix>", "Add a prefix."],
+        ["prefix del <prefix | number>", "Delete a prefix by its text or list number."],
         ["prefix on", "Require a prefix for commands."],
         ["prefix off", "Allow commands without a prefix."],
         ["prefix reset", "Restore the default prefix list."],
       ],
     },
   ],
-  examples: ["prefix + #", "prefix - 2", "prefix on"],
+  examples: ["prefix add #", "prefix del 2", "prefix on"],
   notes: [
     "At least one prefix always stays in the list.",
     "Owner commands work with or without a prefix.",
@@ -36,9 +36,10 @@ const formatList = ({ isActive, prefixList }) => {
 };
 
 const ACTIONS = Object.freeze({
-  "+": (manager, value) =>
+  list: (manager) => ({ data: formatList(manager.getConfig()) }),
+  add: (manager, value) =>
     value ? manager.addPrefix(value) : fail("Specify the prefix to add."),
-  "-": (manager, value) =>
+  del: (manager, value) =>
     value ? manager.deletePrefix(value) : fail("Specify the prefix or its number."),
   on: (manager) => manager.enablePrefix(),
   off: (manager) => manager.disablePrefix(),
@@ -55,12 +56,9 @@ export default {
   },
 
   fn: async ({ m, text, args, prefixManager }) => {
-    if (isHelp(text)) return m.reply(buildGuide(GUIDE));
+    if (!args.length || isHelp(text)) return m.reply(buildGuide(GUIDE));
 
     const [head, value] = args;
-
-    if (head === undefined) return m.reply(formatList(prefixManager.getConfig()));
-
     const key = head.toLowerCase();
 
     if (!Object.hasOwn(ACTIONS, key)) {
@@ -69,6 +67,6 @@ export default {
 
     const { data, error } = ACTIONS[key](prefixManager, value);
 
-    return m.reply(data ?? (error && buildError(error, "prefix")));
+    return m.reply(data ?? buildError(error, "prefix"));
   },
 };

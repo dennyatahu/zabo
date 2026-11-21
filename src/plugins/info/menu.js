@@ -7,6 +7,8 @@ const IMAGE_CONTENT = "imageMessage";
 const OWNER_ONLY = "*Owner Only*\n▸ Only the owner can use this option.";
 const SUCCESS = "✅";
 const FAILURE = "❌";
+const NEED_ANY = "Specify thumb, fav, url, title, or desc.";
+const NEED_MEDIA = "Specify thumb or fav.";
 
 const GUIDE = {
   title: "Menu",
@@ -23,37 +25,51 @@ const GUIDE = {
     {
       heading: "Owner Only: Images",
       rows: [
-        ["menu thumb", "Export the current thumbnail data."],
-        ["menu thumb <url>", "Set the thumbnail from a link."],
-        ["menu thumb (reply or attach an image)", "Set the thumbnail from that image."],
-        ["menu thumb <name | number>", "Use a saved thumbnail."],
-        ["menu thumb save [url] [name]", "Save a link or an image to the library."],
-        ["menu thumb list", "List the saved thumbnails."],
-        ["menu thumb - <name | number>", "Delete a saved thumbnail."],
-        ["menu fav ...", "Same options for the favicon."],
+        ["menu set thumb <url>", "Set the thumbnail from a link."],
+        ["menu set thumb (reply or attach an image)", "Set the thumbnail from that image."],
+        ["menu set thumb <name | number>", "Use a saved thumbnail."],
+        ["menu get thumb", "Export the current thumbnail data."],
+        ["menu save thumb [url] [name]", "Save a link or an image to the library."],
+        ["menu saved [thumb | fav]", "List the saved images."],
+        ["menu del thumb <name | number>", "Delete a saved thumbnail."],
+        ["menu set | get | save | del fav", "Same options for the favicon."],
       ],
     },
     {
       heading: "Owner Only: Text",
       rows: [
-        ["menu url | title | desc", "Show the current value."],
-        ["menu url | title | desc <value>", "Set the value."],
-        ["menu url | title | desc -", "Clear the value."],
+        ["menu get url | title | desc", "Show the current value."],
+        ["menu set url | title | desc <value>", "Set the value."],
+        ["menu del url | title | desc", "Clear the value."],
       ],
     },
   ],
   examples: [
     "menu info",
-    "menu thumb https://example.com/image.jpg",
-    "menu thumb save beach",
-    "menu thumb beach",
-    "menu title My Bot",
+    "menu set thumb https://example.com/image.jpg",
+    "menu save thumb beach",
+    "menu set thumb beach",
+    "menu set title My Bot",
   ],
   notes: [
     "thumb and fav are short for thumbnail and favicon.",
-    "Saved names can't be a number, save, list, or a link.",
+    "Saved names can't be a number or a link.",
   ],
 };
+
+const MEDIA_KINDS = Object.freeze({
+  thumb: "thumbnail",
+  thumbnail: "thumbnail",
+  fav: "favicon",
+  favicon: "favicon",
+});
+
+const TEXT_FIELDS = Object.freeze({
+  url: "url",
+  title: "title",
+  desc: "description",
+  description: "description",
+});
 
 const react = (m, emoji) => Promise.resolve(m.react(emoji)).catch(() => undefined);
 
@@ -67,6 +83,16 @@ const attachedImage = ({ m }) => {
   const target = [m, m.q].find((item) => item?.content === IMAGE_CONTENT);
 
   return target?.download("buffer");
+};
+
+const parseTarget = (value) => {
+  const { first, rest } = splitString(value);
+  const key = first?.toLowerCase();
+
+  if (key && Object.hasOwn(MEDIA_KINDS, key)) return { kind: MEDIA_KINDS[key], rest };
+  if (key && Object.hasOwn(TEXT_FIELDS, key)) return { field: TEXT_FIELDS[key], rest };
+
+  return { rest: value };
 };
 
 const parseSource = (value) => {
@@ -96,65 +122,68 @@ const exportMedia = async (kind, { client, jid, m, menuManager }) => {
   return undefined;
 };
 
-const saveMedia = async (kind, value, context) => {
-  const { url, name } = parseSource(value);
+const setMedia = async (kind, rest, context) => {
+  const { client, menuManager } = context;
+  const target = rest?.trim();
+
+  if (!target) {
+    return menuManager.setMedia(client, kind, { source: await attachedImage(context) });
+  }
+
+  if (isUrl(target)) return menuManager.setMedia(client, kind, { source: target });
+
+  return menuManager.setMedia(client, kind, isIndex(target) ? { index: target } : { name: target });
+};
+
+const set = async (value, context) => {
+  const { kind, field, rest } = parseTarget(value);
+
+  if (kind) return silent(await setMedia(kind, rest, context));
+  if (field) return silent(context.menuManager.setText(field, rest?.trim()));
+
+  return fail(NEED_ANY);
+};
+
+const get = async (value, context) => {
+  const { kind, field } = parseTarget(value);
+
+  if (kind) return exportMedia(kind, context);
+  if (field) return context.menuManager.getText(field);
+
+  return fail(NEED_ANY);
+};
+
+const del = (value, { menuManager }) => {
+  const { kind, field, rest } = parseTarget(value);
+
+  if (kind) return silent(menuManager.removeMedia(kind, rest?.trim()));
+  if (field) return silent(menuManager.clearText(field));
+
+  return fail(NEED_ANY);
+};
+
+const save = async (value, context) => {
+  const { kind, rest } = parseTarget(value);
+
+  if (!kind) return fail(NEED_MEDIA);
+
+  const { url, name } = parseSource(rest);
   const source = url ?? (await attachedImage(context));
 
   return context.menuManager.saveMedia(kind, { source, name: name?.trim() || undefined });
 };
 
-const useMedia = async (kind, target, context) => {
-  const { client, menuManager } = context;
+const saved = (value, { menuManager }) => {
+  const { kind, field } = parseTarget(value);
 
-  if (target) {
-    const options = isUrl(target)
-      ? { source: target }
-      : isIndex(target)
-        ? { index: target }
-        : { name: target };
+  if (field) return fail(NEED_MEDIA);
 
-    return silent(await menuManager.setMedia(client, kind, options));
-  }
-
-  const source = await attachedImage(context);
-
-  if (source) return silent(await menuManager.setMedia(client, kind, { source }));
-
-  return exportMedia(kind, context);
+  return ok(menuManager.formatSaved(kind ? [kind] : undefined));
 };
 
-const mediaCommand = (kind) => async (value, context) => {
-  const { first, rest } = splitString(value);
-  const head = first?.toLowerCase();
+const OWNER_ACTIONS = Object.freeze({ set, get, del, save, saved });
 
-  if (head === "list") return ok(context.menuManager.formatSaved([kind]));
-  if (head === "save") return saveMedia(kind, rest, context);
-  if (head === "-") return silent(context.menuManager.removeMedia(kind, rest?.trim()));
-
-  return useMedia(kind, value?.trim(), context);
-};
-
-const textCommand = (field) => (value, { menuManager }) => {
-  const target = value?.trim();
-
-  if (!target) return menuManager.getText(field);
-  if (target === "-") return silent(menuManager.clearText(field));
-
-  return silent(menuManager.setText(field, target));
-};
-
-const OWNER_COMMANDS = Object.freeze({
-  thumb: mediaCommand("thumbnail"),
-  thumbnail: mediaCommand("thumbnail"),
-  fav: mediaCommand("favicon"),
-  favicon: mediaCommand("favicon"),
-  url: textCommand("url"),
-  title: textCommand("title"),
-  desc: textCommand("description"),
-  description: textCommand("description"),
-});
-
-const runOwnerCommand = async (handler, value, context) => {
+const runOwnerAction = async (handler, value, context) => {
   const { m } = context;
 
   if (!isOwner(m)) {
@@ -204,8 +233,8 @@ export default {
     const { first, rest } = splitString(text);
     const key = first?.toLowerCase();
 
-    if (key && Object.hasOwn(OWNER_COMMANDS, key)) {
-      return runOwnerCommand(OWNER_COMMANDS[key], rest, { client, jid, m, menuManager });
+    if (key && Object.hasOwn(OWNER_ACTIONS, key)) {
+      return runOwnerAction(OWNER_ACTIONS[key], rest, { client, jid, m, menuManager });
     }
 
     const { data, error } = browse(menuManager, text.trim(), label);

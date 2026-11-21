@@ -35,7 +35,6 @@ const FAVICON_FIELDS = Object.freeze(THUMBNAIL_FIELDS.filter((field) => field !=
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_NAME_LENGTH = 32;
-const RESERVED_NAMES = Object.freeze(new Set(["save", "list", "-"]));
 
 const MESSAGES = Object.freeze({
   INVALID_URL: "That URL is not valid. It must start with http:// or https://.",
@@ -46,7 +45,7 @@ const MESSAGES = Object.freeze({
   NO_SOURCE: "Provide an image link, a saved name or number, or reply to an image.",
   SOURCE_CONFLICT: "Use either an image source or a saved name / number, not both.",
   REF_CONFLICT: "Use either a name or a number, not both.",
-  RESERVED_NAME: "That name is reserved. Choose another one.",
+  LINK_NAME: "The name can't be a link.",
   EMPTY_NAME: "The name can't be empty.",
   NUMERIC_NAME: "The name can't be a number only.",
   NO_CATEGORIES: "The menu is empty.",
@@ -339,7 +338,7 @@ class MenuManager {
 
     const text = typeof value === "string" ? value.trim() : "";
 
-    if (!text) return fail(`${label} can't be empty. Send "-" to clear it.`);
+    if (!text) return fail(`${label} can't be empty. Use "del" to clear it.`);
 
     if (field === "url" && !isHttpUrl(text)) return fail(MESSAGES.INVALID_URL);
 
@@ -416,7 +415,7 @@ class MenuManager {
       const value = typeof ref === "string" ? ref.trim() : "";
 
       if (!value) {
-        throw new UserError(`Specify the saved ${label.toLowerCase()} name or number. Use \`list\` to see them.`);
+        throw new UserError(`Specify the saved ${label.toLowerCase()} name or number. Use \`saved\` to see them.`);
       }
 
       const entry = isIndex(value)
@@ -486,9 +485,7 @@ class MenuManager {
     const name = value.trim();
 
     if (!name) throw new UserError(MESSAGES.EMPTY_NAME);
-    if (RESERVED_NAMES.has(name.toLowerCase()) || /^https?:\/\//i.test(name)) {
-      throw new UserError(MESSAGES.RESERVED_NAME);
-    }
+    if (/^https?:\/\//i.test(name)) throw new UserError(MESSAGES.LINK_NAME);
     if (isIndex(name)) throw new UserError(MESSAGES.NUMERIC_NAME);
 
     if (name.length > MAX_NAME_LENGTH) {
