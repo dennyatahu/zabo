@@ -4,22 +4,33 @@ import { basename, join, relative, sep } from "node:path";
 import { unwrapMessage } from "zapo-js";
 
 import { config } from "../../config.js";
-import { parseFlags } from "../../utils/parse-flags.js";
+import { buildError, buildGuide, isHelp } from "../../utils/guide.js";
+import { splitString } from "../../utils/split-string.js";
 
 const PLUGINS_DIR = config.paths.plugins;
 const SAFE_NAME = /[^a-zA-Z0-9._-]/g;
 
-const USAGE = [
-  "*Plugin*",
-  "▸ plugin --add <nama file> (reply to the plugin code or file)",
-  "▸ plugin --add (reply to a file, name from the file)",
-  "▸ plugin --del <cmd>",
-  "▸ plugin --list",
-  "▸ plugin --get <cmd>",
-  "▸ plugin --get <cmd> --text",
-].join("\n");
-
-const error = (message) => `*Error*\n▸ ${message}`;
+const GUIDE = {
+  title: "Plugin",
+  summary: "Add, remove, list, and export plugin files.",
+  groups: [
+    {
+      rows: [
+        ["plugin", "List all plugin files and their commands."],
+        ["plugin + [name]", "Save a plugin from the replied code or file."],
+        ["plugin - <cmd>", "Delete the plugin that owns a command."],
+        ["plugin <cmd>", "Send the plugin file."],
+        ["plugin <cmd> text", "Send the plugin code as a message."],
+      ],
+    },
+  ],
+  examples: ["plugin + ping", "plugin - ping", "plugin ping text"],
+  notes: [
+    "Reply to a message with the code, or to a .js file, when adding.",
+    "Without a name, the file name is used. The folder comes from the plugin category.",
+    "A plugin marked with ! failed to load.",
+  ],
+};
 
 const clean = (value) => String(value ?? "").trim().replace(SAFE_NAME, "_");
 
@@ -90,12 +101,12 @@ const readSource = async (q) => {
   return { source, suggested: undefined };
 };
 
-const add = async ({ flags, q, reloadManager }) => {
+const add = async ({ value, q, reloadManager }) => {
   const { source, suggested } = await readSource(q);
-  const name = fileName(flags.get("add") || suggested);
+  const name = fileName(splitString(value).first || suggested);
   const dir = targetDir(source);
 
-  if (!name) throw new Error("Provide a valid --name value.");
+  if (!name) throw new Error("Provide a valid file name.");
   if (!dir) throw new Error("No valid category found in the plugin code.");
 
   await mkdir(join(PLUGINS_DIR, dir), { recursive: true });
@@ -108,8 +119,11 @@ const add = async ({ flags, q, reloadManager }) => {
   return failed ? `▸ Saved: ${path}\n▸ Load failed: ${failed.message}` : `▸ Saved: ${path}`;
 };
 
-const del = async ({ flags, pluginManager, reloadManager }) => {
-  const command = String(flags.get("del") ?? "").trim();
+const del = async ({ value, pluginManager, reloadManager }) => {
+  const command = splitString(value).first;
+
+  if (!command) throw new Error("Specify the command of the plugin to delete.");
+
   const found = await locate(command, pluginManager);
 
   if (!found) throw new Error(`No plugin found for command \`${command}\`.`);
@@ -153,15 +167,14 @@ const list = async ({ pluginManager }) => {
   return lines.join("\n");
 };
 
-const get = async ({ flags, pluginManager }) => {
-  const command = String(flags.get("get") ?? "").trim();
+const get = async ({ command, value, pluginManager }) => {
   const found = await locate(command, pluginManager);
 
   if (!found) throw new Error(`No plugin found for command \`${command}\`.`);
 
   const source = await readFile(found.path, "utf8");
 
-  if (flags.has("text")) return source;
+  if (splitString(value).first?.toLowerCase() === "text") return source;
 
   return {
     type: "document",
@@ -171,7 +184,7 @@ const get = async ({ flags, pluginManager }) => {
   };
 };
 
-const ACTIONS = { add, del, list, get };
+const ACTIONS = Object.freeze({ "+": add, "-": del });
 
 export default {
   name: "plugin",
@@ -184,17 +197,22 @@ export default {
 
   fn: async (ctx) => {
     const { m, text } = ctx;
-    const { flags } = parseFlags(text);
-    const action = Object.keys(ACTIONS).find((name) => flags.has(name));
 
-    if (!action) return m.reply(USAGE);
+    if (isHelp(text)) return m.reply(buildGuide(GUIDE));
+
+    const { first, rest } = splitString(text);
+    const head = first?.toLowerCase();
 
     try {
-      const result = await ACTIONS[action]({ ...ctx, flags });
+      let result;
+
+      if (head === undefined) result = await list(ctx);
+      else if (Object.hasOwn(ACTIONS, head)) result = await ACTIONS[head]({ ...ctx, value: rest });
+      else result = await get({ ...ctx, command: head, value: rest });
 
       return result ? m.reply(result) : undefined;
     } catch (err) {
-      return m.reply(error(err.message));
+      return m.reply(buildError(err.message));
     }
   },
 };

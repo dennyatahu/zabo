@@ -72,6 +72,27 @@ Linking is only needed on the first run. Credentials are stored in `data/session
 
 Bot settings (prefixes, self mode, selective mode, and menu media) are stored in `data/database.sqlite` using `node:sqlite`. Tables and indexes are created automatically on first run. Delete that file to reset every setting to its default.
 
+## Owner Commands
+
+Owner commands work without a prefix. Add `-h` at the end of any of them to show its guide.
+
+| Command                              | What it does                                              |
+| ------------------------------------ | --------------------------------------------------------- |
+| `prefix`                             | Show the prefix status and list.                          |
+| `prefix + <prefix>` / `- <prefix \| no>` | Add or delete a prefix.                                   |
+| `prefix on` / `off` / `reset`        | Toggle prefix mode or restore the default list.           |
+| `plugin`                             | List plugin files and their commands.                     |
+| `plugin + [name]` / `- <cmd>`        | Save a plugin from a reply, or delete one.                |
+| `plugin <cmd> [text]`                | Send a plugin as a file, or as text.                      |
+| `selective`                          | Show the status and the selective lists.                  |
+| `selective on` / `off` [`all`]       | Toggle selective mode for this group or every group.      |
+| `selective + <cmd, cmd> [@user]`     | Add commands, or targets for those commands.              |
+| `selective - <cmd, cmd> [@user]`     | Remove commands, or targets for those commands.           |
+| `menu thumb` / `fav` ...             | Set, export, save, list, or delete menu images.           |
+| `menu url` / `title` / `desc` [value] | Show, set, or clear (`-`) the menu link preview text.     |
+
+Examples: `prefix + #`, `plugin ping text`, `selective + ping @628123456789`, `menu thumb save beach`, `selective -h`.
+
 ## Writing a Plugin
 
 Create any `.js` file under `src/plugins/<category>/` and restart the bot:

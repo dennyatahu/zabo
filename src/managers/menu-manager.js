@@ -35,6 +35,7 @@ const FAVICON_FIELDS = Object.freeze(THUMBNAIL_FIELDS.filter((field) => field !=
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_NAME_LENGTH = 32;
+const RESERVED_NAMES = Object.freeze(new Set(["save", "list", "-"]));
 
 const MESSAGES = Object.freeze({
   INVALID_URL: "That URL is not valid. It must start with http:// or https://.",
@@ -42,13 +43,13 @@ const MESSAGES = Object.freeze({
   INVALID_SOURCE: "The image source must be a URL or a buffer.",
   INVALID_INDEX: "Invalid index. Start from 1.",
   IMAGE_TOO_LARGE: "The image is too large (max 10 MB).",
-  NO_SOURCE: "Provide an image (URL, reply, or caption) or use --name / --index.",
-  SOURCE_CONFLICT: "Use either an image source or --name / --index, not both.",
-  REF_CONFLICT: "Use either --name or --index, not both.",
+  NO_SOURCE: "Provide an image link, a saved name or number, or reply to an image.",
+  SOURCE_CONFLICT: "Use either an image source or a saved name / number, not both.",
+  REF_CONFLICT: "Use either a name or a number, not both.",
+  RESERVED_NAME: "That name is reserved. Choose another one.",
   EMPTY_NAME: "The name can't be empty.",
   NUMERIC_NAME: "The name can't be a number only.",
   NO_CATEGORIES: "The menu is empty.",
-  NO_THUMBNAIL: "No custom thumbnail is set.",
 });
 
 class UserError extends Error {}
@@ -338,7 +339,7 @@ class MenuManager {
 
     const text = typeof value === "string" ? value.trim() : "";
 
-    if (!text) return fail(`${label} can't be empty. Use --del to clear it.`);
+    if (!text) return fail(`${label} can't be empty. Send "-" to clear it.`);
 
     if (field === "url" && !isHttpUrl(text)) return fail(MESSAGES.INVALID_URL);
 
@@ -366,10 +367,11 @@ class MenuManager {
     return this.#data[field] ? ok(this.#data[field]) : fail(`${label} is empty.`);
   }
 
-  getThumbnail() {
-    const thumbnail = this.#data.thumbnail ?? this.#defaults.get("thumbnail");
+  getMedia(kind) {
+    const { label } = KINDS[kind];
+    const media = this.#data[kind] ?? this.#defaults.get(kind);
 
-    return thumbnail ? ok(thumbnail.image.toString("base64")) : fail(MESSAGES.NO_THUMBNAIL);
+    return media ? ok(media.image.toString("base64")) : fail(`No ${label.toLowerCase()} is available.`);
   }
 
   setMedia(client, kind, { source, name, index } = {}) {
@@ -414,7 +416,7 @@ class MenuManager {
       const value = typeof ref === "string" ? ref.trim() : "";
 
       if (!value) {
-        throw new UserError(`Specify the ${label.toLowerCase()} index or name (see --save --list).`);
+        throw new UserError(`Specify the saved ${label.toLowerCase()} name or number. Use \`list\` to see them.`);
       }
 
       const entry = isIndex(value)
@@ -484,6 +486,9 @@ class MenuManager {
     const name = value.trim();
 
     if (!name) throw new UserError(MESSAGES.EMPTY_NAME);
+    if (RESERVED_NAMES.has(name.toLowerCase()) || /^https?:\/\//i.test(name)) {
+      throw new UserError(MESSAGES.RESERVED_NAME);
+    }
     if (isIndex(name)) throw new UserError(MESSAGES.NUMERIC_NAME);
 
     if (name.length > MAX_NAME_LENGTH) {

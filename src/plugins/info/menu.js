@@ -1,165 +1,160 @@
 import { isOwner } from "../../lib/owner.js";
-import { parseFlags } from "../../utils/parse-flags.js";
+import { buildError, buildGuide, isHelp } from "../../utils/guide.js";
 import { fail, ok } from "../../utils/result.js";
+import { splitString } from "../../utils/split-string.js";
 
-const ACTIONS = Object.freeze(["set", "get", "del", "save"]);
-const MEDIA_KINDS = Object.freeze(["thumbnail", "favicon"]);
 const IMAGE_CONTENT = "imageMessage";
-const THUMBNAIL_FILE = "thumbnail-buffer.json";
 const OWNER_ONLY = "*Owner Only*\n▸ Only the owner can use this option.";
 const SUCCESS = "✅";
 const FAILURE = "❌";
-const SILENT_ACTIONS = new Set(["set", "del"]);
 
-const TEXT_FLAGS = Object.freeze({
-  url: "url",
-  title: "title",
-  desc: "description",
-  description: "description",
-});
+const GUIDE = {
+  title: "Menu",
+  summary: "Browse commands and customize the menu link preview.",
+  groups: [
+    {
+      heading: "Browse",
+      rows: [
+        ["menu", "Show the categories."],
+        ["menu <category>", "Show the commands in a category."],
+        ["menu all", "Show every command."],
+      ],
+    },
+    {
+      heading: "Owner Only: Images",
+      rows: [
+        ["menu thumb", "Export the current thumbnail data."],
+        ["menu thumb <url>", "Set the thumbnail from a link."],
+        ["menu thumb (reply or attach an image)", "Set the thumbnail from that image."],
+        ["menu thumb <name | number>", "Use a saved thumbnail."],
+        ["menu thumb save [url] [name]", "Save a link or an image to the library."],
+        ["menu thumb list", "List the saved thumbnails."],
+        ["menu thumb - <name | number>", "Delete a saved thumbnail."],
+        ["menu fav ...", "Same options for the favicon."],
+      ],
+    },
+    {
+      heading: "Owner Only: Text",
+      rows: [
+        ["menu url | title | desc", "Show the current value."],
+        ["menu url | title | desc <value>", "Set the value."],
+        ["menu url | title | desc -", "Clear the value."],
+      ],
+    },
+  ],
+  examples: [
+    "menu info",
+    "menu thumb https://example.com/image.jpg",
+    "menu thumb save beach",
+    "menu thumb beach",
+    "menu title My Bot",
+  ],
+  notes: [
+    "thumb and fav are short for thumbnail and favicon.",
+    "Saved names can't be a number, save, list, or a link.",
+  ],
+};
 
 const react = (m, emoji) => Promise.resolve(m.react(emoji)).catch(() => undefined);
 
-const buildHelp = (prefix) => {
-  const row = (command) => `▸ ${prefix}${command}`;
+const silent = (result) => ({ ...result, silent: true });
 
-  return [
-    "*Menu Guide*",
-    row("menu"),
-    row("menu <category>"),
-    row("menu all"),
-    "",
-    "*Owner Only*",
-    row("menu --set --thumbnail <url>"),
-    row("menu --set --thumbnail (reply to an image, or send it with this caption)"),
-    row("menu --set --thumbnail --name <text>"),
-    row("menu --set --thumbnail --index <number>"),
-    row("menu --set --favicon <url>"),
-    row("menu --set --favicon --name <text> | --index <number>"),
-    row("menu --set --url <url>"),
-    row("menu --set --title <text>"),
-    row("menu --set --desc <text>"),
-    "",
-    row("menu --get --thumbnail"),
-    row("menu --get --url"),
-    row("menu --get --title"),
-    row("menu --get --desc"),
-    "",
-    row("menu --del --url"),
-    row("menu --del --title"),
-    row("menu --del --desc"),
-    row("menu --del --thumbnail <index | name>"),
-    row("menu --del --favicon <index | name>"),
-    "",
-    row("menu --save --thumbnail <url> --name <text>"),
-    row("menu --save --thumbnail --name <text> (reply to an image, or use it as the caption)"),
-    row("menu --save --favicon <url> --name <text>"),
-    row("menu --save --list [--thumbnail | --favicon]"),
-  ].join("\n");
-};
+const isUrl = (value) => /^https?:\/\//i.test(value);
 
-const findKind = (flags) => MEDIA_KINDS.find((kind) => flags.has(kind));
+const isIndex = (value) => /^\d+$/.test(value);
 
-const findText = (flags) => {
-  const flag = Object.keys(TEXT_FLAGS).find((key) => flags.has(key));
-
-  return flag ? { field: TEXT_FLAGS[flag], value: flags.get(flag) } : undefined;
-};
-
-const readSource = async (kind, { flags, m }, allowImplicit) => {
-  const value = flags.get(kind);
-
-  if (value) return value;
-  if (kind !== "thumbnail" || !allowImplicit) return undefined;
-
+const attachedImage = ({ m }) => {
   const target = [m, m.q].find((item) => item?.content === IMAGE_CONTENT);
 
   return target?.download("buffer");
 };
 
-const unknownOption = ({ prefix }) => fail(`Unknown option. Send \`${prefix}menu --help\`.`);
+const parseSource = (value) => {
+  const { first, rest } = splitString(value);
 
-const handleSet = async (context) => {
-  const { client, flags, menuManager } = context;
-  const kind = findKind(flags);
+  return first && isUrl(first) ? { url: first, name: rest } : { url: undefined, name: value };
+};
 
-  if (kind) {
-    const hasRef = flags.has("name") || flags.has("index");
-    const source = await readSource(kind, context, !hasRef);
+const exportMedia = async (kind, { client, jid, m, menuManager }) => {
+  await menuManager.ensureDefaults(client);
 
-    return menuManager.setMedia(client, kind, {
-      source,
-      name: flags.get("name"),
-      index: flags.get("index"),
-    });
+  const { data, error } = menuManager.getMedia(kind);
+
+  if (error) return fail(error);
+
+  await client.message.send(
+    jid,
+    {
+      type: "document",
+      media: Buffer.from(JSON.stringify({ [`${kind}-buffer`]: data }, null, 2)),
+      mimetype: "application/json",
+      fileName: `${kind}-buffer.json`,
+    },
+    { quote: m },
+  );
+
+  return undefined;
+};
+
+const saveMedia = async (kind, value, context) => {
+  const { url, name } = parseSource(value);
+  const source = url ?? (await attachedImage(context));
+
+  return context.menuManager.saveMedia(kind, { source, name: name?.trim() || undefined });
+};
+
+const useMedia = async (kind, target, context) => {
+  const { client, menuManager } = context;
+
+  if (target) {
+    const options = isUrl(target)
+      ? { source: target }
+      : isIndex(target)
+        ? { index: target }
+        : { name: target };
+
+    return silent(await menuManager.setMedia(client, kind, options));
   }
 
-  const text = findText(flags);
+  const source = await attachedImage(context);
 
-  return text ? menuManager.setText(text.field, text.value) : unknownOption(context);
+  if (source) return silent(await menuManager.setMedia(client, kind, { source }));
+
+  return exportMedia(kind, context);
 };
 
-const handleGet = async (context) => {
-  const { client, jid, m, flags, menuManager } = context;
+const mediaCommand = (kind) => async (value, context) => {
+  const { first, rest } = splitString(value);
+  const head = first?.toLowerCase();
 
-  if (flags.has("thumbnail")) {
-    await menuManager.ensureDefaults(client);
+  if (head === "list") return ok(context.menuManager.formatSaved([kind]));
+  if (head === "save") return saveMedia(kind, rest, context);
+  if (head === "-") return silent(context.menuManager.removeMedia(kind, rest?.trim()));
 
-    const { data, error } = menuManager.getThumbnail();
-
-    if (error) return fail(error);
-
-    await client.message.send(
-      jid,
-      {
-        type: "document",
-        media: Buffer.from(JSON.stringify({ "thumbnail-buffer": data }, null, 2)),
-        mimetype: "application/json",
-        fileName: THUMBNAIL_FILE,
-      },
-      { quote: m },
-    );
-
-    return undefined;
-  }
-
-  const text = findText(flags);
-
-  return text ? menuManager.getText(text.field) : unknownOption(context);
+  return useMedia(kind, value?.trim(), context);
 };
 
-const handleDel = async (context) => {
-  const { flags, menuManager } = context;
-  const kind = findKind(flags);
+const textCommand = (field) => (value, { menuManager }) => {
+  const target = value?.trim();
 
-  if (kind) return menuManager.removeMedia(kind, flags.get(kind));
+  if (!target) return menuManager.getText(field);
+  if (target === "-") return silent(menuManager.clearText(field));
 
-  const text = findText(flags);
-
-  return text ? menuManager.clearText(text.field) : unknownOption(context);
+  return silent(menuManager.setText(field, target));
 };
 
-const handleSave = async (context) => {
-  const { flags, menuManager } = context;
-  const kind = findKind(flags);
-
-  if (flags.has("list")) return ok(menuManager.formatSaved(kind ? [kind] : undefined));
-
-  if (!kind) return unknownOption(context);
-
-  const source = await readSource(kind, context, true);
-
-  return menuManager.saveMedia(kind, { source, name: flags.get("name") });
-};
-
-const HANDLERS = Object.freeze({
-  set: handleSet,
-  get: handleGet,
-  del: handleDel,
-  save: handleSave,
+const OWNER_COMMANDS = Object.freeze({
+  thumb: mediaCommand("thumbnail"),
+  thumbnail: mediaCommand("thumbnail"),
+  fav: mediaCommand("favicon"),
+  favicon: mediaCommand("favicon"),
+  url: textCommand("url"),
+  title: textCommand("title"),
+  desc: textCommand("description"),
+  description: textCommand("description"),
 });
 
-const runOwnerAction = async (action, context) => {
+const runOwnerCommand = async (handler, value, context) => {
   const { m } = context;
 
   if (!isOwner(m)) {
@@ -171,11 +166,11 @@ const runOwnerAction = async (action, context) => {
   let result;
 
   try {
-    result = await HANDLERS[action](context);
+    result = await handler(value, context);
   } catch (err) {
     await react(m, FAILURE);
 
-    return m.reply(`*Error*\n▸ ${err.message}`);
+    return m.reply(buildError(err.message));
   }
 
   if (result?.error) {
@@ -186,7 +181,7 @@ const runOwnerAction = async (action, context) => {
 
   await react(m, SUCCESS);
 
-  return result && !SILENT_ACTIONS.has(action) ? m.reply(result.data) : undefined;
+  return result?.data && !result.silent ? m.reply(result.data) : undefined;
 };
 
 const browse = (menuManager, positional, prefix) => {
@@ -203,19 +198,17 @@ export default {
 
   fn: async ({ client, jid, m, prefix, text, menuManager }) => {
     const label = prefix ?? "";
-    const { positional, flags } = parseFlags(text);
 
-    if (flags.has("help") || flags.has("h")) return m.reply(buildHelp(label));
+    if (isHelp(text)) return m.reply(buildGuide({ ...GUIDE, prefix: label }));
 
-    const action = ACTIONS.find((name) => flags.has(name));
+    const { first, rest } = splitString(text);
+    const key = first?.toLowerCase();
 
-    if (action) {
-      return runOwnerAction(action, { client, jid, m, flags, prefix: label, menuManager });
+    if (key && Object.hasOwn(OWNER_COMMANDS, key)) {
+      return runOwnerCommand(OWNER_COMMANDS[key], rest, { client, jid, m, menuManager });
     }
 
-    if (flags.size) return m.reply(buildHelp(label));
-
-    const { data, error } = browse(menuManager, positional, label);
+    const { data, error } = browse(menuManager, text.trim(), label);
 
     if (error) return m.reply(error);
 
