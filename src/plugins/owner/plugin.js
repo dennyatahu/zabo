@@ -20,11 +20,11 @@ const GUIDE = {
         ["plugin add [name]", "Save a plugin from the replied code or file."],
         ["plugin del <cmd>", "Delete the plugin that owns a command."],
         ["plugin get <cmd>", "Send the plugin file."],
-        ["plugin get <cmd> text", "Send the plugin code as a message."],
+        ["plugin get <cmd> -t", "Send the plugin code as a message."],
       ],
     },
   ],
-  examples: ["plugin add ping", "plugin del ping", "plugin get ping text"],
+  examples: ["plugin add ping", "plugin del ping", "plugin get ping -t"],
   notes: [
     "Reply to a message with the code, or to a .js file, when adding.",
     "Without a name, the file name is used. The folder comes from the plugin category.",
@@ -167,8 +167,12 @@ const list = async ({ pluginManager }) => {
   return lines.join("\n");
 };
 
+const isTextFlag = (token) => token.toLowerCase() === "-t";
+
 const get = async ({ value, pluginManager }) => {
-  const { first: command, rest } = splitString(value);
+  const tokens = String(value ?? "").split(/\s+/).filter(Boolean);
+  const asText = tokens.some(isTextFlag);
+  const command = tokens.find((token) => !isTextFlag(token));
 
   if (!command) throw new Error("Specify the command of the plugin to get.");
 
@@ -178,7 +182,7 @@ const get = async ({ value, pluginManager }) => {
 
   const source = await readFile(found.path, "utf8");
 
-  if (splitString(rest).first?.toLowerCase() === "text") return source;
+  if (asText) return source;
 
   return {
     type: "document",

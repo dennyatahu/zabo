@@ -1,139 +1,72 @@
-<div align="center">
-
-<img src="https://cloud.yardansh.com/Kbmh9u.png" alt="zabo logo" width="160" />
-
 # zabo
 
-**A fast, lightweight WhatsApp bot powered by [zapo-js](https://www.npmjs.com/package/zapo-js).**
+Fast, lightweight WhatsApp bot built with [zapo-js](https://www.npmjs.com/package/zapo-js). Plugin-based, ESM-only, persistent SQLite session.
 
-Plugin-based · ESM-only · Persistent SQLite session
+## Quick start
 
-[![Node.js](https://img.shields.io/badge/node-%E2%89%A520.19-339933?logo=node.js&logoColor=white)](https://nodejs.org)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![zapo-js](https://img.shields.io/badge/powered%20by-zapo--js-25D366)](https://www.npmjs.com/package/zapo-js)
-
-[Highlights](#highlights) · [Quick Start](#quick-start) · [Linking](#linking-whatsapp) · [Plugins](#writing-a-plugin) · [Structure](#project-structure)
-
-</div>
-
----
-
-## Highlights
-
-- **Two login methods** — pairing code or QR code, selected with one environment variable.
-- **Drop-in plugins** — add a `.js` file under `src/plugins/`, restart, and it is loaded automatically.
-- **Reliable reconnects** — exponential backoff with jitter, fresh re-login after unlinking, and a clean stop on fatal disconnects.
-- **Chat-side controls** — manage prefixes, self mode, and selective replies without editing files.
-- **Restart & reload** — `res` restarts the whole process, `r` hot-reloads plugins and lists changed files.
-- **Dynamic menu** — generated from plugin categories, with a customizable link preview.
-- **Persistent state** — the WhatsApp session and runtime settings survive restarts.
-
-## Quick Start
-
-**Requirements:** Node.js **20.19+** and a WhatsApp account.
+Requires Node.js 20.19+ and a WhatsApp account.
 
 ```bash
 git clone https://github.com/dennyatahu/zabo.git
 cd zabo
 npm install
 cp .env.example .env
+# edit .env, then:
+npm start
 ```
 
-Configure `.env`:
+`npm run dev` watches files but has no restart command.
 
-| Variable      | Default | Description                                                                  |
-| ------------- | ------- | ---------------------------------------------------------------------------- |
-| `AUTH_METHOD` | `pair`  | Login method: `pair` (pairing code) or `qr` (QR code).                       |
-| `BOT_PN`      | —       | Bot phone number, digits only with country code. Required for `pair`.        |
-| `OWNER`       | —       | Owner number(s), comma-separated. Owner commands work without a prefix.      |
-| `LOG_LEVEL`   | `info`  | Log verbosity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `silent`. |
+## Configuration
 
-Run the bot:
+| Variable | Default | Description |
+| --- | --- | --- |
+| `AUTH_METHOD` | `pair` | `pair` (pairing code) or `qr` |
+| `BOT_PN` | — | Bot number, digits only with country code. Required for `pair`. |
+| `OWNER` | — | Owner number(s), comma-separated. No prefix needed for owner commands. |
+| `BOT_NAME` | `zabo` | Name used by `lock` / `unlock`. |
+| `LOG_LEVEL` | `info` | `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `silent`. |
 
-```bash
-npm start      # start the bot
-npm run dev    # start with file watching (runs without the launcher, so `res` is unavailable)
-```
-
-The bot exits with a clear message if `AUTH_METHOD` is invalid or `BOT_PN` is missing in `pair` mode.
+`TITLE_MENU` / `DESC_MENU` set the menu link preview (`zabo` / `by dennyatahu` by default).
 
 ## Linking WhatsApp
 
-Linking is only needed on the first run. Credentials are stored in `data/session.sqlite`, so later starts reconnect automatically.
+Only needed on the first run; the session is saved in `data/session.sqlite`.
 
-**Pairing code** — set `BOT_PN`, start the bot, then open WhatsApp → **Linked devices** → **Link a device** → **Link with phone number instead** and enter the code shown in the terminal.
+- **pair** — start the bot, then WhatsApp → Linked devices → Link a device → Link with phone number instead, and enter the code shown in the terminal.
+- **qr** — set `AUTH_METHOD=qr` and scan the terminal QR code.
 
-**QR code** — set `AUTH_METHOD=qr`, start the bot, then open WhatsApp → **Linked devices** → **Link a device** and scan the terminal QR code.
+To switch methods, delete `data/session.sqlite` and link again.
 
-> [!NOTE]
-> To switch methods on an already-linked account, stop the bot, delete `data/session.sqlite`, change `AUTH_METHOD`, and start again. If the device is unlinked from the phone, the bot re-links using the configured method.
+## Owner commands
 
-## Persistent Data
+No prefix needed. Add `-h` to any command for its full guide.
 
-Bot settings (prefixes, self mode, selective mode, and menu media) are stored in `data/database.sqlite` using `node:sqlite`. Tables and indexes are created automatically on first run. Delete that file to reset every setting to its default.
+| Command | What it does |
+| --- | --- |
+| `prefix list` / `add <p>` / `del <p\|no>` / `on` / `off` / `reset` | Prefix management |
+| `plugin list` / `add [name]` / `del <cmd>` / `get <cmd> [-t]` | Plugin files; `-t` sends the code as text |
+| `selective list` / `on` / `off [all]` / `only [del] <cmds>` / `to [del] <cmds> @user` | Selective replies |
+| `menu set` / `get` / `del thumb\|fav\|url\|title\|desc` | Menu images and link preview |
+| `menu save thumb\|fav [url] [name]` / `menu saved [thumb\|fav]` | Saved image library |
+| `lock @bot` / `unlock @bot` | Lock or unlock the bot |
+| `self on` / `off` | Owner-only mode |
+| `res` / `r` | Restart the process / hot-reload plugins |
 
-## Owner Commands
+## Plugins
 
-Owner commands work without a prefix. Add `-h` at the end of any of them to show its guide.
-
-| Command                                      | What it does                                         |
-| -------------------------------------------- | ---------------------------------------------------- |
-| `prefix list`                                | Show the prefix status and list.                     |
-| `prefix add <prefix>` / `del <prefix \| no>`  | Add or delete a prefix.                              |
-| `prefix on` / `off` / `reset`                | Toggle prefix mode or restore the default list.      |
-| `plugin list`                                | List plugin files and their commands.                |
-| `plugin add [name]` / `del <cmd>`            | Save a plugin from a reply, or delete one.           |
-| `plugin get <cmd> [text]`                    | Send a plugin as a file, or as text.                 |
-| `selective list`                             | Show the status and the selective lists.             |
-| `selective on` / `off` [`all`]               | Toggle selective mode for this group or every group. |
-| `selective only [del] <cmd, cmd>`            | Add or remove selective commands.                    |
-| `selective to [del] <cmd, cmd> <@user>`      | Add or remove extra receivers for commands.          |
-| `menu set` / `get` / `del` `thumb` / `fav`   | Set, export, or delete menu images.                  |
-| `menu save thumb` / `fav` [`url`] [`name`]   | Save an image to the library.                        |
-| `menu saved` [`thumb` / `fav`]               | List the saved images.                               |
-| `menu set` / `get` / `del` `url` / `title` / `desc` | Change, show, or clear the menu link preview text. |
-
-Examples: `prefix add #`, `plugin get ping text`, `selective to ping @628123456789`, `menu save thumb beach`, `selective -h`.
-
-## Writing a Plugin
-
-Create any `.js` file under `src/plugins/<category>/` and restart the bot:
+Drop a `.js` file in `src/plugins/<category>/`:
 
 ```js
 export default {
   name: "hello",
-  commands: ["hello", "hi"],
+  commands: ["hello"],
   categories: ["info"],
-  ownerOnly: false,
-  options: { bypassPrefix: false },
-
-  fn: async ({ m, text, client, jid }) => {
-    return m.reply(`Hello ${text || "world"}!`);
-  },
+  fn: async ({ m, text }) => m.reply(`Hello ${text || "world"}!`),
 };
 ```
 
-`ownerOnly` and `options.bypassPrefix` are optional. Set the latter to make a command work even when prefix mode is on.
-
-The handler context also provides `args`, `q` (quoted message), `store`, `command`, `prefix`, and the managers: `pluginManager`, `prefixManager`, `selfManager`, `selectiveManager`, `menuManager`, `reloadManager`, and `restartManager`. Commands are case-insensitive and cannot contain spaces.
-
-## Project Structure
-
-```text
-src/
-├── index.js        # launcher (restarts the bot process)
-├── main.js         # bootstrap
-├── config.js       # environment + paths
-├── core/           # client, session, dispatcher, store, logger
-├── events/         # auth, connection, and message handlers
-├── managers/       # plugin, prefix, self, selective, menu, reload, restart
-├── plugins/        # commands grouped by category
-├── lib/            # serialization, owner check, image pipeline, selective send
-├── utils/          # shared helpers
-└── constants/      # reconnect, restart, and image settings
-
-data/               # runtime state (auto-created, git-ignored)
-```
+`ownerOnly` and `options: { bypassPrefix: true }` are optional. Runtime settings live in `data/database.sqlite`.
 
 ## License
 
