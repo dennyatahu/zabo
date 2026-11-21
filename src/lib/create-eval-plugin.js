@@ -27,6 +27,7 @@ export const createEvalPlugin = ({ name, trigger, wrap = (code) => code }) => ({
       store,
       command,
       prefix,
+      lockManager,
       menuManager,
       pluginManager,
       prefixManager,

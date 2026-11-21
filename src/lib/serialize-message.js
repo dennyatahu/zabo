@@ -101,7 +101,10 @@ const bind = (target, client) =>
 
 export const smsg = (event, client) => {
   const { contextInfo, ...fields } = parse(event?.message);
-  const m = bind({ ...event, ...fields }, client);
+  const m = bind(
+    { ...event, ...fields, mentions: [...(contextInfo?.mentionedJids ?? [])] },
+    client,
+  );
   const quoted = contextInfo?.quotedMessage;
 
   if (!quoted) return m;

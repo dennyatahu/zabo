@@ -2,6 +2,7 @@ import { store } from "./store.js";
 import { logger } from "./logger.js";
 import { isOwner } from "../lib/owner.js";
 import { createSelectiveClient, isSelectiveClient } from "../lib/selective-client.js";
+import { lockManager } from "../managers/lock-manager.js";
 import { menuManager } from "../managers/menu-manager.js";
 import { pluginManager } from "../managers/plugin-manager.js";
 import { prefixManager } from "../managers/prefix-manager.js";
@@ -12,6 +13,7 @@ import { selfManager } from "../managers/self-manager.js";
 import { splitString } from "../utils/split-string.js";
 
 const managers = {
+  lockManager,
   menuManager,
   pluginManager,
   prefixManager,
@@ -42,6 +44,8 @@ const match = (text) => {
 };
 
 const isAllowed = (m, plugin) => {
+  if (lockManager.isActive) return Boolean(plugin.options?.lockBypass) && isOwner(m);
+
   if (!plugin.ownerOnly && !selfManager.isActive) return true;
 
   return isOwner(m);

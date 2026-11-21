@@ -1,6 +1,7 @@
 import { proto } from "zapo-js";
 
 import { DEFAULT_MEDIA_URLS, FAVICON_SIZE } from "../constants/image.js";
+import { config } from "../config.js";
 import { db, transaction } from "../core/database.js";
 import { logger } from "../core/logger.js";
 import { processImage } from "../lib/image-processor.js";
@@ -9,14 +10,10 @@ import { pluginManager } from "./plugin-manager.js";
 
 const DEFAULTS = Object.freeze({
   url: "https://github.com/dennyatahu/zabo",
-  title: "zabo",
-  description: "by dennyatahu",
 });
 
 const TEXT_FIELDS = Object.freeze({
   url: "URL",
-  title: "Title",
-  description: "Description",
 });
 
 const THUMBNAIL_FIELDS = Object.freeze([
@@ -206,8 +203,8 @@ const readSaved = (value) =>
 
 const parseStored = (stored) => ({
   url: readText(stored?.url, DEFAULTS.url),
-  title: readText(stored?.title, DEFAULTS.title),
-  description: readText(stored?.description, DEFAULTS.description),
+  title: config.titleMenu,
+  description: config.descMenu,
   thumbnail: readActive(stored?.thumbnail),
   favicon: readActive(stored?.favicon),
   thumbnails: readSaved(stored?.thumbnails),
@@ -525,7 +522,7 @@ class MenuManager {
     Object.assign(this.#data, patch);
 
     transaction(() => {
-      if (keys.some((key) => key === "url" || key === "title" || key === "description")) {
+      if (keys.includes("url")) {
         this.#saveProfile();
       }
 

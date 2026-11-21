@@ -22,6 +22,10 @@ if (authMethod === "pair" && !botPn) {
   fail("BOT_PN is required when AUTH_METHOD=pair (digits only, with country code)");
 }
 
+const botName = getEnv("BOT_NAME") || "zabo";
+const titleMenu = getEnv("TITLE_MENU") ?? "zabo";
+const descMenu = getEnv("DESC_MENU") ?? "by dennyatahu";
+
 const dataDir = resolve(import.meta.dirname, "../data");
 
 mkdirSync(dataDir, { recursive: true });
@@ -29,6 +33,9 @@ mkdirSync(dataDir, { recursive: true });
 export const config = Object.freeze({
   authMethod,
   botPn,
+  botName,
+  titleMenu,
+  descMenu,
   sessionId: "default",
   owners: Object.freeze(
     (getEnv("OWNER") ?? "")

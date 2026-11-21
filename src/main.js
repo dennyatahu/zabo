@@ -1,5 +1,6 @@
 import { Session } from "./core/session.js";
 import { registerProcessHandlers } from "./core/process.js";
+import { lockManager } from "./managers/lock-manager.js";
 import { menuManager } from "./managers/menu-manager.js";
 import { pluginManager } from "./managers/plugin-manager.js";
 import { prefixManager } from "./managers/prefix-manager.js";
@@ -15,6 +16,7 @@ restartManager.bind(session);
 
 prefixManager.init();
 selfManager.init();
+lockManager.init();
 selectiveManager.init();
 menuManager.init();
 await reloadManager.init();

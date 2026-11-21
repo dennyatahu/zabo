@@ -7,7 +7,7 @@ const IMAGE_CONTENT = "imageMessage";
 const OWNER_ONLY = "*Owner Only*\n▸ Only the owner can use this option.";
 const SUCCESS = "✅";
 const FAILURE = "❌";
-const NEED_ANY = "Specify thumb, fav, url, title, or desc.";
+const NEED_ANY = "Specify thumb, fav, or url.";
 const NEED_MEDIA = "Specify thumb or fav.";
 
 const GUIDE = {
@@ -38,9 +38,9 @@ const GUIDE = {
     {
       heading: "Owner Only: Text",
       rows: [
-        ["menu get url | title | desc", "Show the current value."],
-        ["menu set url | title | desc <value>", "Set the value."],
-        ["menu del url | title | desc", "Clear the value."],
+        ["menu get url", "Show the current value."],
+        ["menu set url <value>", "Set the value."],
+        ["menu del url", "Clear the value."],
       ],
     },
   ],
@@ -49,7 +49,7 @@ const GUIDE = {
     "menu set thumb https://example.com/image.jpg",
     "menu save thumb beach",
     "menu set thumb beach",
-    "menu set title My Bot",
+    "menu set url https://example.com",
   ],
   notes: [
     "thumb and fav are short for thumbnail and favicon.",
@@ -66,9 +66,6 @@ const MEDIA_KINDS = Object.freeze({
 
 const TEXT_FIELDS = Object.freeze({
   url: "url",
-  title: "title",
-  desc: "description",
-  description: "description",
 });
 
 const react = (m, emoji) => Promise.resolve(m.react(emoji)).catch(() => undefined);

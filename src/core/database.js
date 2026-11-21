@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
   self_mode INTEGER NOT NULL DEFAULT 0 CHECK (self_mode IN (0, 1)),
   prefix_mode INTEGER NOT NULL DEFAULT 0 CHECK (prefix_mode IN (0, 1)),
   selective_mode INTEGER NOT NULL DEFAULT 0 CHECK (selective_mode IN (0, 1)),
+  lock_mode INTEGER NOT NULL DEFAULT 0 CHECK (lock_mode IN (0, 1)),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -93,6 +94,12 @@ if (!restartColumns.some(({ name }) => name === "message_id")) {
   db.exec("ALTER TABLE restart_request ADD COLUMN message_id TEXT");
 }
 
+const settingColumns = db.prepare("PRAGMA table_info(app_settings)").all();
+
+if (!settingColumns.some(({ name }) => name === "lock_mode")) {
+  db.exec("ALTER TABLE app_settings ADD COLUMN lock_mode INTEGER NOT NULL DEFAULT 0");
+}
+
 export const closeDatabase = () => {
   if (db.isOpen) db.close();
 };
@@ -112,7 +119,7 @@ export const transaction = (task) => {
   }
 };
 
-const SETTING_COLUMNS = new Set(["self_mode", "prefix_mode", "selective_mode"]);
+const SETTING_COLUMNS = new Set(["self_mode", "prefix_mode", "selective_mode", "lock_mode"]);
 
 export const setSetting = (column, value) => {
   if (!SETTING_COLUMNS.has(column)) throw new Error(`Unknown setting: ${column}`);
