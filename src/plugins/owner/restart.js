@@ -12,8 +12,8 @@ export default {
       return m.reply("*Restart*\n▸ Unavailable. Start the bot with npm start.");
     }
 
-    await m.reply("*Restart*\n▸ Restarting the bot...");
+    const notice = await m.reply("*Restart*\n▸ Restarting the bot...");
 
-    return restartManager.request(jid);
+    return restartManager.request(jid, notice?.id);
   },
 };

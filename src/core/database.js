@@ -52,6 +52,13 @@ CREATE TABLE IF NOT EXISTS menu_active_media (
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+CREATE TABLE IF NOT EXISTS menu_default_media (
+  kind TEXT PRIMARY KEY CHECK (kind IN ('thumbnail', 'favicon')),
+  image BLOB NOT NULL,
+  message BLOB NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
 CREATE TABLE IF NOT EXISTS menu_saved_media (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   kind TEXT NOT NULL CHECK (kind IN ('thumbnail', 'favicon')),
@@ -66,7 +73,8 @@ CREATE INDEX IF NOT EXISTS idx_menu_saved_media_kind ON menu_saved_media (kind, 
 CREATE TABLE IF NOT EXISTS restart_request (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   jid TEXT NOT NULL,
-  requested_at INTEGER NOT NULL
+  requested_at INTEGER NOT NULL,
+  message_id TEXT
 );
 `;
 
@@ -78,6 +86,12 @@ export const db = new DatabaseSync(config.paths.database, {
 db.exec("PRAGMA journal_mode = WAL");
 db.exec("PRAGMA synchronous = NORMAL");
 db.exec(SCHEMA);
+
+const restartColumns = db.prepare("PRAGMA table_info(restart_request)").all();
+
+if (!restartColumns.some(({ name }) => name === "message_id")) {
+  db.exec("ALTER TABLE restart_request ADD COLUMN message_id TEXT");
+}
 
 export const closeDatabase = () => {
   if (db.isOpen) db.close();

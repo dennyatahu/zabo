@@ -225,11 +225,15 @@ class MenuManager {
 
     await Promise.all(
       ["thumbnail", "favicon"].map(async (kind) => {
+        if (this.#defaults.has(kind)) return;
+
         try {
           const image = await fetchImage(DEFAULT_MEDIA_URLS[kind]);
           const message = await KINDS[kind].build(client, image);
+          const entry = { image, message };
 
-          this.#defaults.set(kind, { image, message });
+          this.#defaults.set(kind, entry);
+          this.#saveDefault(kind, entry);
         } catch (err) {
           logger.warn({ err, kind }, "default menu media unavailable");
         }
@@ -240,7 +244,16 @@ class MenuManager {
   init() {
     const profile = db.prepare("SELECT url, title, description FROM menu_profile WHERE id = 1").get();
     const active = db.prepare("SELECT kind, image, message FROM menu_active_media").all();
+    const defaults = db.prepare("SELECT kind, image, message FROM menu_default_media").all();
     const saved = db.prepare("SELECT kind, name, image FROM menu_saved_media ORDER BY id").all();
+
+    for (const { kind, image, message } of defaults) {
+      const entry = readActive({ image, message });
+
+      if (entry) this.#defaults.set(kind, entry);
+    }
+
+    this.#defaultsReady = this.#defaults.size === Object.keys(DEFAULT_MEDIA_URLS).length;
 
     const activeMedia = Object.fromEntries(
       active.map(({ kind, image, message }) => [kind, { image, message }]),
@@ -533,14 +546,22 @@ class MenuManager {
   }
 
   #saveActive(kind, entry) {
+    this.#writeMedia("menu_active_media", kind, entry);
+  }
+
+  #saveDefault(kind, entry) {
+    this.#writeMedia("menu_default_media", kind, entry);
+  }
+
+  #writeMedia(table, kind, entry) {
     if (!entry) {
-      db.prepare("DELETE FROM menu_active_media WHERE kind = ?").run(kind);
+      db.prepare(`DELETE FROM ${table} WHERE kind = ?`).run(kind);
 
       return;
     }
 
     db.prepare(
-      `INSERT INTO menu_active_media (kind, image, message) VALUES (?, ?, ?)
+      `INSERT INTO ${table} (kind, image, message) VALUES (?, ?, ?)
        ON CONFLICT(kind) DO UPDATE SET image = excluded.image, message = excluded.message,
        updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
     ).run(kind, entry.image, encodeMessage(entry.message));

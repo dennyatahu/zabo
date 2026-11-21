@@ -18,17 +18,20 @@ class RestartManager {
     return process.env[SUPERVISED_ENV] === "1" && this.#session !== null;
   }
 
-  request(jid) {
+  request(jid, messageId) {
     db.prepare(
-      `INSERT INTO restart_request (id, jid, requested_at) VALUES (1, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET jid = excluded.jid, requested_at = excluded.requested_at`,
-    ).run(jid, Date.now());
+      `INSERT INTO restart_request (id, jid, requested_at, message_id) VALUES (1, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET jid = excluded.jid, requested_at = excluded.requested_at,
+       message_id = excluded.message_id`,
+    ).run(jid, Date.now(), messageId ?? null);
 
     return this.#session.shutdown(RESTART_EXIT_CODE);
   }
 
   async announce(client) {
-    const pending = db.prepare("SELECT jid, requested_at FROM restart_request WHERE id = 1").get();
+    const pending = db
+      .prepare("SELECT jid, requested_at, message_id FROM restart_request WHERE id = 1")
+      .get();
 
     if (!pending) return;
 
@@ -39,10 +42,16 @@ class RestartManager {
     if (elapsed > RESTART_NOTICE_TTL_MS) return;
 
     const text = `*Restart*\n▸ Restarted in ${(elapsed / 1000).toFixed(2)} seconds`;
+    const send = pending.message_id
+      ? () =>
+          client.message.send(pending.jid, text, {
+            editKey: { id: pending.message_id },
+          })
+      : () => client.message.send(pending.jid, text);
 
     for (let attempt = 1; attempt <= SEND_ATTEMPTS; attempt += 1) {
       try {
-        await client.message.send(pending.jid, text);
+        await send();
 
         return;
       } catch (err) {
