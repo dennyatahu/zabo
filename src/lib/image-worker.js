@@ -1,34 +1,38 @@
 import { parentPort, workerData } from "node:worker_threads";
 
-import { Jimp, JimpMime, ResizeStrategy } from "jimp";
+import sharp from "sharp";
 
 import { FAVICON_SIZE } from "../constants/image.js";
 
 const THUMBNAIL_SIZE = 640;
 const PREVIEW_SIZE = 50;
 const JPEG_QUALITY = 80;
+const WHITE = "#ffffff";
+const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 
 const read = async (buffer) => {
+  const image = sharp(buffer);
+
   try {
-    return await Jimp.read(buffer);
+    await image.metadata();
   } catch {
     throw Object.assign(new Error("invalid image"), { code: "INVALID_IMAGE" });
   }
+
+  return image;
 };
 
-const encodeJpeg = (source, size) => {
-  const image = source.clone();
-
-  if (Math.max(image.bitmap.width, image.bitmap.height) > size) {
-    image.scaleToFit({ w: size, h: size, mode: ResizeStrategy.BILINEAR });
-  }
-
-  const { width, height } = image.bitmap;
-
-  return new Jimp({ width, height, color: 0xffffffff })
-    .composite(image)
-    .getBuffer(JimpMime.jpeg, { quality: JPEG_QUALITY });
-};
+const encodeJpeg = (source, size) =>
+  source
+    .clone()
+    .resize(size, size, {
+      fit: "inside",
+      withoutEnlargement: true,
+      kernel: "linear",
+    })
+    .flatten({ background: WHITE })
+    .jpeg({ quality: JPEG_QUALITY })
+    .toBuffer();
 
 const TASKS = Object.freeze({
   thumbnail: async (image) => ({ data: await encodeJpeg(image, THUMBNAIL_SIZE) }),
@@ -36,15 +40,24 @@ const TASKS = Object.freeze({
   favicon: async (image) => ({
     data: await image
       .clone()
-      .contain({ w: FAVICON_SIZE, h: FAVICON_SIZE, mode: ResizeStrategy.BILINEAR })
-      .getBuffer(JimpMime.png),
+      .resize(FAVICON_SIZE, FAVICON_SIZE, {
+        fit: "contain",
+        background: TRANSPARENT,
+        kernel: "linear",
+      })
+      .png()
+      .toBuffer(),
   }),
 
-  preview: async (image) => ({
-    width: image.bitmap.width,
-    height: image.bitmap.height,
-    data: await encodeJpeg(image, PREVIEW_SIZE),
-  }),
+  preview: async (image) => {
+    const { width, height } = await image.metadata();
+
+    return {
+      width,
+      height,
+      data: await encodeJpeg(image, PREVIEW_SIZE),
+    };
+  },
 });
 
 try {

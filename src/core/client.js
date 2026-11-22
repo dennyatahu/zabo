@@ -1,8 +1,11 @@
+import { createMediaProcessor } from "@zapo-js/media-utils";
 import { WaClient } from "zapo-js";
 
 import { config } from "../config.js";
 import { selectiveGroupSend } from "../lib/selective-group-send.js";
 import { store } from "./store.js";
+
+const mediaProcessor = createMediaProcessor();
 
 export const createClient = (logger) =>
   new WaClient(
@@ -18,6 +21,7 @@ export const createClient = (logger) =>
       messageMaxAttempts: 3,
       messageRetryDelayMs: 750,
       plugins: [selectiveGroupSend],
+      media: { processor: mediaProcessor },
       markOnlineOnConnect: true,
       recoverFromClientTooOld: true,
       history: {
