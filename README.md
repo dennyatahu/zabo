@@ -39,8 +39,8 @@ Requires **Node.js 22.5+**. Pairing code: set `BOT_PN`, then WhatsApp → *Linke
 | `BOT_PN`      | n/a     | Bot number, required for `pair`              |
 | `OWNER`       | n/a     | Owner number(s), comma-separated             |
 | `BOT_NAME`    | `zabo`  | Name accepted by `lock` / `unlock`           |
-| `TITLE_MENU`  | `zabo`  | Menu preview title                           |
-| `DESC_MENU`   | n/a     | Menu preview description                     |
+| `TITLE_MENU`  | `zabo`  | Default link preview title (override: `menu set title`) |
+| `DESC_MENU`   | n/a     | Default link preview description (override: `menu set desc`) |
 | `LOG_LEVEL`   | `info`  | `trace` to `fatal`, or `silent`              |
 
 ## Owner commands

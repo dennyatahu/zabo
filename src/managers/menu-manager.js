@@ -14,6 +14,8 @@ const DEFAULTS = Object.freeze({
 
 const TEXT_FIELDS = Object.freeze({
   url: "URL",
+  title: "Title",
+  description: "Description",
 });
 
 const THUMBNAIL_FIELDS = Object.freeze([
@@ -203,8 +205,8 @@ const readSaved = (value) =>
 
 const parseStored = (stored) => ({
   url: readText(stored?.url, DEFAULTS.url),
-  title: config.titleMenu,
-  description: config.descMenu,
+  title: readText(stored?.title, config.titleMenu),
+  description: readText(stored?.description, config.descMenu),
   thumbnail: readActive(stored?.thumbnail),
   favicon: readActive(stored?.favicon),
   thumbnails: readSaved(stored?.thumbnails),
@@ -522,7 +524,7 @@ class MenuManager {
     Object.assign(this.#data, patch);
 
     transaction(() => {
-      if (keys.includes("url")) {
+      if (keys.some((key) => Object.hasOwn(TEXT_FIELDS, key))) {
         this.#saveProfile();
       }
 
