@@ -1,4 +1,5 @@
 import { createMediaProcessor } from "@zapo-js/media-utils";
+import { Agent } from "node:https";
 import { WaClient } from "zapo-js";
 
 import { config } from "../config.js";
@@ -12,6 +13,9 @@ export const createClient = (logger) =>
     {
       store,
       sessionId: config.sessionId,
+      proxy: {
+        ws: new Agent(),
+      },
       deviceBrowser: "chrome",
       iqTimeoutMs: 15000,
       keepAliveIntervalMs: 15000,
