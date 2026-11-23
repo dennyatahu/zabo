@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 
-import { RESTART_EXIT_CODE, SUPERVISED_ENV } from "./constants/restart.js";
+import { RESTART_EXIT_CODE, SUPERVISED_ENV } from "./constants.js";
 
 const entry = resolve(import.meta.dirname, "main.js");
 const execArgv = process.execArgv.filter((arg) => !arg.startsWith("--watch"));

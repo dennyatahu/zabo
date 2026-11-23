@@ -1,16 +1,15 @@
-import { store } from "./store.js";
-import { logger } from "./logger.js";
-import { isOwner } from "../lib/owner.js";
+import { isOwner } from "../lib/jid.js";
 import { createSelectiveClient, isSelectiveClient } from "../lib/selective-client.js";
-import { lockManager } from "../managers/lock-manager.js";
 import { menuManager } from "../managers/menu-manager.js";
 import { pluginManager } from "../managers/plugin-manager.js";
 import { prefixManager } from "../managers/prefix-manager.js";
 import { reloadManager } from "../managers/reload-manager.js";
 import { restartManager } from "../managers/restart-manager.js";
 import { selectiveManager } from "../managers/selective-manager.js";
-import { selfManager } from "../managers/self-manager.js";
-import { splitString } from "../utils/split-string.js";
+import { lockManager, selfManager } from "../managers/toggle-manager.js";
+import { splitString } from "../utils.js";
+import { logger } from "./logger.js";
+import { store } from "./store.js";
 
 const managers = {
   lockManager,

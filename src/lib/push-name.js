@@ -3,7 +3,7 @@ import { isLidJid, isUserJid, toUserJid, WA_DEFAULTS } from "zapo-js";
 import { config } from "../config.js";
 import { logger } from "../core/logger.js";
 import { store } from "../core/store.js";
-import { senderJids } from "./sender.js";
+import { senderJids } from "./jid.js";
 
 const known = new Map();
 

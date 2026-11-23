@@ -1,5 +1,5 @@
 import { db, getSetting, setSetting, transaction } from "../core/database.js";
-import { fail, ok } from "../utils/result.js";
+import { fail, ok } from "../utils.js";
 import { pluginManager } from "./plugin-manager.js";
 
 const DEFAULT_PREFIXES = Object.freeze(["."]);

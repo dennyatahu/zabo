@@ -1,12 +1,34 @@
+import { Worker } from "node:worker_threads";
+
 import { proto } from "zapo-js";
 
-import { DEFAULT_MEDIA_URLS, FAVICON_SIZE } from "../constants/image.js";
 import { config } from "../config.js";
+import { DEFAULT_MEDIA_URLS, FAVICON_SIZE } from "../constants.js";
 import { db, transaction } from "../core/database.js";
 import { logger } from "../core/logger.js";
-import { processImage } from "../lib/image-processor.js";
-import { fail, ok } from "../utils/result.js";
+import { fail, ok } from "../utils.js";
 import { pluginManager } from "./plugin-manager.js";
+
+const WORKER_URL = new URL("../lib/image-worker.js", import.meta.url);
+
+const processImage = (task, buffer) =>
+  new Promise((resolve, reject) => {
+    const worker = new Worker(WORKER_URL, { workerData: { task, buffer } });
+
+    worker.once("message", ({ result, error }) => {
+      worker.terminate();
+
+      if (error) return reject(Object.assign(new Error(error.message), { code: error.code }));
+
+      return resolve(result);
+    });
+
+    worker.once("error", reject);
+
+    worker.once("exit", (code) => {
+      if (code !== 0) reject(new Error(`image worker exited with code ${code}`));
+    });
+  });
 
 const DEFAULTS = Object.freeze({
   url: "https://github.com/dennyatahu/zabo",

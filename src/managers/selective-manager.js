@@ -1,5 +1,5 @@
 import { db, getSetting, setSetting, transaction } from "../core/database.js";
-import { fail, ok } from "../utils/result.js";
+import { fail, ok } from "../utils.js";
 
 const MESSAGES = Object.freeze({
   ENABLED: "Selective mode is on for this group. Bot messages are only visible to the command sender.",

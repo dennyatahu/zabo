@@ -1,5 +1,6 @@
-import { createMediaProcessor } from "@zapo-js/media-utils";
 import { Agent } from "node:https";
+
+import { createMediaProcessor } from "@zapo-js/media-utils";
 import { WaClient } from "zapo-js";
 
 import { config } from "../config.js";

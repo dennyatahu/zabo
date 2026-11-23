@@ -1,7 +1,5 @@
-import { isOwner } from "../../lib/owner.js";
-import { buildError, buildGuide, isHelp } from "../../utils/guide.js";
-import { fail, ok } from "../../utils/result.js";
-import { splitString } from "../../utils/split-string.js";
+import { isOwner } from "../../lib/jid.js";
+import { buildError, buildGuide, fail, isHelp, ok, splitString } from "../../utils.js";
 
 const IMAGE_CONTENT = "imageMessage";
 const OWNER_ONLY = "*Owner Only*\n▸ Only the owner can use this option.";

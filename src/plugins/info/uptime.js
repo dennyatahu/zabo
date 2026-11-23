@@ -1,4 +1,4 @@
-import { formatUptime } from "../../utils/format-uptime.js";
+import { formatUptime } from "../../utils.js";
 
 export default {
   name: "uptime",

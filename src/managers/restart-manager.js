@@ -1,6 +1,6 @@
 import { delay } from "zapo-js";
 
-import { RESTART_EXIT_CODE, RESTART_NOTICE_TTL_MS, SUPERVISED_ENV } from "../constants/restart.js";
+import { RESTART_EXIT_CODE, RESTART_NOTICE_TTL_MS, SUPERVISED_ENV } from "../constants.js";
 import { db } from "../core/database.js";
 import { logger } from "../core/logger.js";
 

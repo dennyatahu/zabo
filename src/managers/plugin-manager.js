@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 
 import { config } from "../config.js";
 import { logger } from "../core/logger.js";
-import { isValidPlugin } from "../utils/is-valid-plugin.js";
+import { isValidPlugin } from "../utils.js";
 
 class PluginManager {
   #commands = new Map();

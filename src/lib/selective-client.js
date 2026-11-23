@@ -1,7 +1,6 @@
 import { isLidJid, proto, toUserJid } from "zapo-js";
 
-import { userOf } from "../utils/user-of.js";
-import { isSelf } from "./is-self.js";
+import { isSelf, userOf } from "./jid.js";
 
 const SELECTIVE = Symbol("selective");
 const EDIT_ATTR = "1";

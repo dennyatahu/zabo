@@ -1,4 +1,4 @@
-import { formatBytes } from "../../utils/format-bytes.js";
+import { formatBytes } from "../../utils.js";
 
 const LABELS = Object.freeze({
   rss: "RSS",

@@ -1,7 +1,7 @@
 import { Readable } from "node:stream";
 import { getContentType, unwrapMessage, WaMediaTransferClient } from "zapo-js";
 
-import { isSelf } from "./is-self.js";
+import { isSelf } from "./jid.js";
 
 const THUMBNAIL_MEDIA_TYPES = ["thumbnail-link", "image"];
 const MAC_MISMATCH = "media MAC mismatch";
@@ -32,8 +32,6 @@ const parse = (raw) => {
   };
 };
 
-// Incoming proto messages expose `mentionedJid` (singular). Newer helpers may
-// normalize it to `mentionedJids`, so accept both forms.
 const mentionsOf = (contextInfo) => {
   const raw = contextInfo?.mentionedJid ?? contextInfo?.mentionedJids ?? [];
 

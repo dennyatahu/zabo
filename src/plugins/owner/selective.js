@@ -1,7 +1,6 @@
+import { userOf } from "../../lib/jid.js";
 import { findPushNames } from "../../lib/push-name.js";
-import { buildError, buildGuide, isHelp } from "../../utils/guide.js";
-import { splitString } from "../../utils/split-string.js";
-import { userOf } from "../../utils/user-of.js";
+import { buildError, buildGuide, isHelp, splitString } from "../../utils.js";
 
 const SEPARATOR = /[\s,]+/;
 const USER_TOKEN = /^(?:[@+]\d+|\d{5,})$/;

@@ -4,8 +4,7 @@ import { basename, join, relative, sep } from "node:path";
 import { unwrapMessage } from "zapo-js";
 
 import { config } from "../../config.js";
-import { buildError, buildGuide, isHelp } from "../../utils/guide.js";
-import { splitString } from "../../utils/split-string.js";
+import { buildError, buildGuide, isHelp, splitString } from "../../utils.js";
 
 const PLUGINS_DIR = config.paths.plugins;
 const SAFE_NAME = /[^a-zA-Z0-9._-]/g;

@@ -1,12 +1,12 @@
 import { delay } from "zapo-js";
 
+import { RECONNECT_FRESH_MS } from "../constants.js";
+import { bindEvents } from "../events.js";
+import { backoff } from "../utils.js";
 import { createClient } from "./client.js";
 import { closeDatabase } from "./database.js";
 import { flushLogger, logger } from "./logger.js";
 import { store } from "./store.js";
-import { bindEvents } from "../events/index.js";
-import { RECONNECT_FRESH_MS } from "../constants/reconnect.js";
-import { backoff } from "../utils/backoff.js";
 
 export class Session {
   #client = null;
@@ -119,3 +119,17 @@ export class Session {
     }
   }
 }
+
+export const registerProcessHandlers = (session) => {
+  process.on("SIGINT", () => void session.shutdown(0));
+  process.on("SIGTERM", () => void session.shutdown(0));
+
+  process.on("unhandledRejection", (error) => {
+    logger.error({ err: error }, "unhandled rejection");
+  });
+
+  process.on("uncaughtException", (error) => {
+    logger.fatal({ err: error }, "uncaught exception");
+    void session.shutdown(1);
+  });
+};

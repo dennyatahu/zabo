@@ -1,5 +1,5 @@
-import { isLockTarget, LOCK_TARGET_ERROR } from "../../lib/lock-target.js";
-import { buildGuide } from "../../utils/guide.js";
+import { isLockTarget, LOCK_TARGET_ERROR } from "../../lib/jid.js";
+import { buildGuide } from "../../utils.js";
 
 const GUIDE = {
   title: "Unlock",

@@ -1,5 +1,4 @@
-import { buildError, buildGuide, isHelp } from "../../utils/guide.js";
-import { fail } from "../../utils/result.js";
+import { buildError, buildGuide, fail, isHelp } from "../../utils.js";
 
 const GUIDE = {
   title: "Prefix",

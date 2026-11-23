@@ -2,7 +2,7 @@ import { parentPort, workerData } from "node:worker_threads";
 
 import sharp from "sharp";
 
-import { FAVICON_SIZE } from "../constants/image.js";
+import { FAVICON_SIZE } from "../constants.js";
 
 const THUMBNAIL_SIZE = 640;
 const PREVIEW_SIZE = 50;
