@@ -26,7 +26,7 @@ const botName = getEnv("BOT_NAME") || "zabo";
 const titleMenu = getEnv("TITLE_MENU") ?? "zabo";
 const descMenu = getEnv("DESC_MENU") ?? "by dennyatahu";
 
-const dataDir = resolve(import.meta.dirname, "../data");
+const dataDir = resolve(import.meta.dir, "../data");
 
 mkdirSync(dataDir, { recursive: true });
 
@@ -44,10 +44,10 @@ export const config = Object.freeze({
       .filter(Boolean),
   ),
   paths: Object.freeze({
-    root: resolve(import.meta.dirname, ".."),
-    src: import.meta.dirname,
+    root: resolve(import.meta.dir, ".."),
+    src: import.meta.dir,
     data: dataDir,
-    plugins: resolve(import.meta.dirname, "plugins"),
+    plugins: resolve(import.meta.dir, "plugins"),
     session: resolve(dataDir, "session.sqlite"),
     database: resolve(dataDir, "database.sqlite"),
   }),

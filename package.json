@@ -43,10 +43,9 @@
     "sharp": "^0.35.5",
     "zapo-js": "^1.12.0"
   },
-  "allowScripts": {
-    "zapo-js": true
-  },
   "trustedDependencies": [
-    "zapo-js"
+    "zapo-js",
+    "@zapo-js/native",
+    "sharp"
   ]
 }

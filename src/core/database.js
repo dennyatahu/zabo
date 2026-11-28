@@ -100,25 +100,17 @@ if (!settingColumns.some(({ name }) => name === "lock_mode")) {
 
 export const closeDatabase = () => {
   try {
+    db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+  } catch {
+  }
+
+  try {
     db.close();
   } catch {
   }
 };
 
-export const transaction = (task) => {
-  db.exec("BEGIN IMMEDIATE");
-
-  try {
-    const result = task();
-    db.exec("COMMIT");
-
-    return result;
-  } catch (err) {
-    db.exec("ROLLBACK");
-
-    throw err;
-  }
-};
+export const transaction = (task) => db.transaction(task).immediate();
 
 const SETTING_COLUMNS = new Set(["self_mode", "prefix_mode", "selective_mode", "lock_mode"]);
 

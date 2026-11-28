@@ -1,6 +1,5 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 
 import { config } from "../config.js";
 import { logger } from "../core/logger.js";
@@ -45,7 +44,7 @@ class PluginManager {
 
   async #import(path, stamp) {
     try {
-      const { default: plugin } = await import(`${pathToFileURL(path).href}?v=${stamp}`);
+      const { default: plugin } = await import(`${Bun.pathToFileURL(path).href}?v=${stamp}`);
 
       if (!isValidPlugin(plugin)) throw new Error("invalid plugin shape");
 

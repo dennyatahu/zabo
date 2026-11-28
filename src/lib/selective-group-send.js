@@ -1,5 +1,3 @@
-import { randomBytes } from "node:crypto";
-
 import {
   defineWaClientPlugin,
   normalizeDeviceJid,
@@ -12,7 +10,13 @@ const ENC_VERSION = "2";
 const ID_PREFIX = "3EB0";
 const MESSAGE_TYPE = "text";
 
-const createStanzaId = () => ID_PREFIX + randomBytes(9).toString("hex").toUpperCase();
+const createStanzaId = () => {
+  const bytes = new Uint8Array(9);
+
+  crypto.getRandomValues(bytes);
+
+  return ID_PREFIX + [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
+};
 
 const createMutex = () => {
   let tail = Promise.resolve();

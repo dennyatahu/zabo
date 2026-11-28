@@ -1,12 +1,6 @@
-import { createRequire } from "node:module";
-import util from "node:util";
-import * as zapo from "zapo-js";
-
 import { logger } from "../core/logger.js";
 
-const require = createRequire(import.meta.url);
-
-const stringify = (value) => (typeof value === "string" ? value : util.inspect(value));
+const stringify = (value) => (typeof value === "string" ? value : Bun.inspect(value));
 
 export const createEvalPlugin = ({ name, trigger, wrap = (code) => code }) => ({
   name,
