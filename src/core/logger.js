@@ -1,7 +1,7 @@
 import pino from "pino";
 
 const LEVELS = new Set(["trace", "debug", "info", "warn", "error", "fatal", "silent"]);
-const requestedLevel = process.env.LOG_LEVEL?.trim().toLowerCase();
+const requestedLevel = Bun.env.LOG_LEVEL?.trim().toLowerCase();
 const level = LEVELS.has(requestedLevel) ? requestedLevel : "info";
 
 const target = pino({

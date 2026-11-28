@@ -6,7 +6,7 @@
 
 **Fast, lightweight WhatsApp bot powered by [zapo-js](https://www.npmjs.com/package/zapo-js).**
 
-[![Node](https://img.shields.io/badge/node-%E2%89%A522.5-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Bun](https://img.shields.io/badge/bun-%E2%89%A51.4-000000?logo=bun&logoColor=white)](https://bun.sh)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![zapo-js](https://img.shields.io/badge/powered%20by-zapo--js-25D366)](https://www.npmjs.com/package/zapo-js)
 
@@ -24,12 +24,12 @@
 ```bash
 git clone https://github.com/dennyatahu/zabo.git
 cd zabo
-npm install
+bun install
 cp .env.example .env
-npm start
+bun start
 ```
 
-Requires **Node.js 22.5+**. Pairing code: set `BOT_PN`, then WhatsApp → *Linked devices* → *Link with phone number*. QR: set `AUTH_METHOD=qr` and scan.
+Requires **Bun 1.4+**. Pairing code: set `BOT_PN`, then WhatsApp → *Linked devices* → *Link with phone number*. QR: set `AUTH_METHOD=qr` and scan.
 
 ## Environment
 

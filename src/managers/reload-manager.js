@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 
 import { config } from "../config.js";
@@ -13,9 +12,11 @@ const isPluginFile = (path) => path.startsWith(PLUGINS_PREFIX);
 
 const hashFile = async (path) => {
   try {
-    return createHash("sha1")
-      .update(await readFile(path))
-      .digest("hex");
+    const hasher = new Bun.CryptoHasher("sha1");
+
+    hasher.update(await Bun.file(path).arrayBuffer());
+
+    return hasher.digest("hex");
   } catch {
     return null;
   }

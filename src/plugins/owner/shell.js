@@ -1,8 +1,3 @@
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
-
-const run = promisify(exec);
-
 const MAX_BUFFER_BYTES = 20 * 1024 * 1024;
 const MAX_REPLY_LENGTH = 3500;
 
@@ -24,16 +19,27 @@ export default {
     let fileName = "shell-output.txt";
 
     try {
-      const { stdout, stderr } = await run(command, {
-        windowsHide: true,
-        maxBuffer: MAX_BUFFER_BYTES,
+      const proc = Bun.spawn(["sh", "-c", command], {
+        stdout: "pipe",
+        stderr: "pipe",
       });
+
+      const [stdout, stderr] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+      ]);
+
+      const code = await proc.exited;
+
+      if (code !== 0) throw Object.assign(new Error(stderr || stdout), { stdout, stderr, code });
 
       output = (stdout || stderr || "Done.").trim();
     } catch (err) {
       output = `${err.stdout || ""}${err.stderr || err.message}`.trim();
       fileName = "shell-error.txt";
     }
+
+    if (output.length > MAX_BUFFER_BYTES) output = output.slice(0, MAX_BUFFER_BYTES);
 
     if (output.length <= MAX_REPLY_LENGTH) return m.reply(output);
 

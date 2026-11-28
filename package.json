@@ -8,7 +8,7 @@
     "bot",
     "zapo-js",
     "plugin",
-    "nodejs",
+    "bun",
     "esm"
   ],
   "homepage": "https://github.com/dennyatahu/zabo#readme",
@@ -27,11 +27,11 @@
   "type": "module",
   "main": "src/index.js",
   "engines": {
-    "node": ">=22.5.0"
+    "bun": ">=1.4.0"
   },
   "scripts": {
-    "start": "node --env-file=.env src/index.js",
-    "dev": "node --watch --env-file=.env src/main.js"
+    "start": "bun src/index.js",
+    "dev": "bun --watch src/main.js"
   },
   "dependencies": {
     "@zapo-js/media-utils": "^1.0.0",
@@ -46,5 +46,8 @@
   },
   "allowScripts": {
     "zapo-js": true
-  }
+  },
+  "trustedDependencies": [
+    "zapo-js"
+  ]
 }

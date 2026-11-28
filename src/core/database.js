@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import { Database } from "bun:sqlite";
 
 import { config } from "../config.js";
 
@@ -79,11 +79,9 @@ CREATE TABLE IF NOT EXISTS restart_request (
 );
 `;
 
-export const db = new DatabaseSync(config.paths.database, {
-  enableForeignKeyConstraints: true,
-  timeout: 5000,
-});
+export const db = new Database(config.paths.database);
 
+db.exec("PRAGMA foreign_keys = ON");
 db.exec("PRAGMA journal_mode = WAL");
 db.exec("PRAGMA synchronous = NORMAL");
 db.exec(SCHEMA);
@@ -101,7 +99,10 @@ if (!settingColumns.some(({ name }) => name === "lock_mode")) {
 }
 
 export const closeDatabase = () => {
-  if (db.isOpen) db.close();
+  try {
+    db.close();
+  } catch {
+  }
 };
 
 export const transaction = (task) => {

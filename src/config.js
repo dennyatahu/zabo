@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 const AUTH_METHODS = Object.freeze(["pair", "qr"]);
 
-const getEnv = (name) => process.env[name]?.trim();
+const getEnv = (name) => Bun.env[name]?.trim();
 
 const fail = (message) => {
   console.error(`[config] ${message}`);

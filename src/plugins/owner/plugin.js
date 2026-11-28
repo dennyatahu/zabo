@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, unlink } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
 
 import { unwrapMessage } from "zapo-js";
@@ -73,7 +73,7 @@ const locate = async (command, pluginManager) => {
   if (loaded?.path) return { path: loaded.path, name: basename(loaded.path) };
 
   for (const path of await pluginFiles()) {
-    const source = await readFile(path, "utf8");
+    const source = await Bun.file(path).text();
 
     if (listValues(source, "commands").some((value) => value.toLowerCase() === key)) {
       return { path, name: basename(path) };
@@ -109,7 +109,7 @@ const add = async ({ value, q, reloadManager }) => {
   if (!dir) throw new Error("No valid category found in the plugin code.");
 
   await mkdir(join(PLUGINS_DIR, dir), { recursive: true });
-  await writeFile(join(PLUGINS_DIR, dir, name), source, "utf8");
+  await Bun.write(join(PLUGINS_DIR, dir, name), source);
 
   const report = await reloadManager.reload();
   const failed = report.failures.find((item) => item.path.endsWith(`/${dir}/${name}`));
@@ -140,7 +140,7 @@ const list = async ({ pluginManager }) => {
     const parts = relative(PLUGINS_DIR, path).split(sep).join("/").split("/");
     const dir = parts.shift();
     const name = parts.join("/");
-    const source = await readFile(path, "utf8");
+    const source = await Bun.file(path).text();
     const loaded = pluginManager.array.find((plugin) => plugin.path === path);
     const commands = loaded?.commands ?? listValues(source, "commands");
     const entries = grouped.get(dir) ?? [];
@@ -179,7 +179,7 @@ const get = async ({ value, pluginManager }) => {
 
   if (!found) throw new Error(`No plugin found for command \`${command}\`.`);
 
-  const source = await readFile(found.path, "utf8");
+  const source = await Bun.file(found.path).text();
 
   if (asText) return source;
 
