@@ -12,7 +12,6 @@
         "pino-pretty": "^13.2.0",
         "qrcode-terminal": "^0.12.0",
         "sharp": "^0.35.5",
-        "ws": "^8.23.0",
         "zapo-js": "^1.12.0",
       },
     },
@@ -146,8 +145,6 @@
     "tslib": ["tslib@2.9.1", "", {}, "sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA=="],
 
     "wrappy": ["wrappy@1.0.2", "", {}, "sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ=="],
-
-    "ws": ["ws@8.23.1", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-1rzWDSN0NOi3tpwgHsQExjWRoKUGtjCkJ2gZRaaRtzhYLboMytOI9pj9PU7yCgY37auqdd4OyLofZDbkeuZmPA=="],
 
     "zapo-js": ["zapo-js@1.12.2", "", { "peerDependencies": { "pino": "^9.0.0", "pino-pretty": "^13.0.0", "ws": "^8.20.1" }, "optionalPeers": ["pino", "pino-pretty", "ws"], "hasInstallScript": true }, "sha512-htasajNbxzCcoZUp308ounK4EGQlS4bM0Cv6VogbdL91kGN+B4aNiepda6FCc7PyOessAv9Fc9zT3tlbbJg9qw=="],
 
