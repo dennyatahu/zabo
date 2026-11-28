@@ -25,12 +25,12 @@
     "url": "https://github.com/dennyatahu"
   },
   "type": "module",
-  "main": "src/index.js",
+  "main": "src/launcher.js",
   "engines": {
     "bun": ">=1.4.0"
   },
   "scripts": {
-    "start": "bun src/index.js",
+    "start": "bun src/launcher.js",
     "dev": "bun --watch src/main.js"
   },
   "dependencies": {
