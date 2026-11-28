@@ -1,17 +1,21 @@
+// Matches an incoming WhatsApp message to a plugin and runs it.
+// Handles prefix resolution, owner/self/lock gating, and selective reply mode.
+// All managers are injected into the plugin context (contract preserved).
+
 import { isOwner } from "../lib/jid.js";
-import { createSelectiveClient, isSelectiveClient } from "../lib/selective-client.js";
-import { menuManager } from "../managers/menu-manager.js";
-import { pluginManager } from "../managers/plugin-manager.js";
-import { prefixManager } from "../managers/prefix-manager.js";
-import { reloadManager } from "../managers/reload-manager.js";
-import { restartManager } from "../managers/restart-manager.js";
-import { selectiveManager } from "../managers/selective-manager.js";
-import { lockManager, selfManager } from "../managers/toggle-manager.js";
-import { splitString } from "../utils.js";
+import { createSelectiveClient, isSelectiveClient } from "../lib/selective/client.js";
+import { menuManager } from "../managers/menu/index.js";
+import { pluginManager } from "../managers/plugin.js";
+import { prefixManager } from "../managers/prefix.js";
+import { reloadManager } from "../managers/reload.js";
+import { restartManager } from "../managers/restart.js";
+import { selectiveManager } from "../managers/selective.js";
+import { lockManager, selfManager } from "../managers/toggle.js";
+import { splitString } from "../lib/split-string.js";
 import { logger } from "./logger.js";
 import { store } from "./store.js";
 
-const managers = {
+const managers = Object.freeze({
   lockManager,
   menuManager,
   pluginManager,
@@ -20,16 +24,17 @@ const managers = {
   restartManager,
   selectiveManager,
   selfManager,
-};
+});
 
+// Parse "command rest" from text. Returns { plugin, command, rest } or undefined.
 const findPlugin = (input) => {
   const { first, rest } = splitString(input);
   const command = first?.toLowerCase();
   const plugin = command ? pluginManager.get(command) : undefined;
-
   return plugin ? { plugin, command, rest } : undefined;
 };
 
+// Resolve whether text matches a plugin command, considering prefix and bypassPrefix.
 const match = (text) => {
   const resolved = prefixManager.resolve(text);
 
@@ -42,6 +47,8 @@ const match = (text) => {
   return found?.plugin.options?.bypassPrefix ? { ...found, prefix: undefined } : undefined;
 };
 
+// Gate: lock mode restricts to lockBypass plugins + owner; self mode restricts to owner.
+// Non-owner, non-locked, non-self: allowed.
 const isAllowed = (m, plugin) => {
   if (lockManager.isActive) return Boolean(plugin.options?.lockBypass) && isOwner(m);
 
@@ -50,16 +57,18 @@ const isAllowed = (m, plugin) => {
   return isOwner(m);
 };
 
+// Replace m.client with a selective client so replies go only to chosen targets.
 const useSelective = (m, targets) => {
   if (!m.key.isGroup || isSelectiveClient(m.client)) return;
 
   const client = createSelectiveClient(m.client, m.key, targets);
 
   m.client = client;
-
   if (m.q) m.q.client = client;
 };
 
+// Build the plugin context object (contract: m, q, text, args, client, jid, store,
+// prefix, command, plus every manager).
 const createContext = (m, { plugin, command, prefix, rest }) => {
   const jid = m.key.remoteJid;
 
@@ -77,6 +86,7 @@ const createContext = (m, { plugin, command, prefix, rest }) => {
   };
 };
 
+// Run a plugin's fn, catching errors so one bad plugin does not kill the session.
 const run = async (m, found, { selective, targets }) => {
   try {
     if (selective) useSelective(m, targets);

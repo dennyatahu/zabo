@@ -1,12 +1,17 @@
+// WhatsApp session lifecycle: connect, reconnect with exponential backoff,
+// and graceful shutdown. Manages a single WaClient instance at a time.
+// Uses zapo-js `delay` for backoff sleep. Signal handlers are registered by
+// the caller (src/main.js) so responsibility is not split across files.
+
 import { delay } from "zapo-js";
 
-import { RECONNECT_FRESH_MS } from "../constants.js";
-import { bindEvents } from "../events.js";
-import { backoff } from "../utils.js";
-import { createClient } from "./client.js";
-import { closeDatabase } from "./database.js";
-import { flushLogger, logger } from "./logger.js";
+import { RECONNECT_FRESH_MS } from "../config/constants.js";
+import { bindEvents } from "./events/index.js";
+import { backoff } from "../lib/format.js";
+import { closeDatabase } from "../database/connection.js";
+import { flushLogger, getLogger } from "./logger.js";
 import { store } from "./store.js";
+import { createClient } from "./client.js";
 
 export class Session {
   #client = null;
@@ -19,6 +24,8 @@ export class Session {
     return this.#stopped;
   }
 
+  // True only while the given client is the current one. Stale event handlers
+  // from a replaced client silently ignore their events.
   isCurrent(target) {
     return target === this.#client;
   }
@@ -33,6 +40,9 @@ export class Session {
     });
   }
 
+  // Start (or restart) the connection. When fresh=true or the previous client
+  // is already connected, dispose it first. Emits "connecting" log and awaits
+  // client.connect(). On failure, schedules a reconnect.
   async start({ fresh = false } = {}) {
     if (this.#stopped || this.#connecting) return;
     this.#connecting = true;
@@ -40,21 +50,21 @@ export class Session {
     try {
       const previous = this.#client;
 
-      if (previous && (fresh || previous.auth.getState().connected)) {
+      if (previous && (fresh || previous.getState().connected)) {
         this.#client = null;
         await this.#dispose(previous);
       }
 
       if (!this.#client) {
-        this.#client = createClient(logger);
+        this.#client = createClient(getLogger());
         bindEvents(this, this.#client);
       }
 
-      logger.info("connecting");
+      getLogger().info("connecting");
       await this.#client.connect();
       this.#attempts = 0;
     } catch (error) {
-      logger.error({ err: error }, "connect failed");
+      getLogger().error({ err: error }, "connect failed");
 
       const failed = this.#client;
       this.#client = null;
@@ -63,10 +73,12 @@ export class Session {
       this.#connecting = false;
       await this.reconnect("connect_error");
     } finally {
-      this.#connecting = false;
+      // Guard against reconnect being called from catch AND finally.
+      if (!this.#waiting) this.#connecting = false;
     }
   }
 
+  // Wait backoff ms then start again. Not re-entrant (#waiting guard).
   async reconnect(reason, { fresh = false } = {}) {
     if (this.#stopped || this.#waiting) return;
     this.#waiting = true;
@@ -74,7 +86,9 @@ export class Session {
     const ms = fresh ? RECONNECT_FRESH_MS : backoff(this.#attempts);
     this.#attempts += 1;
 
-    logger.warn(`reconnecting in ${ms}ms (attempt ${this.#attempts}, reason: ${reason})`);
+    getLogger().warn(
+      `reconnecting in ${ms}ms (attempt ${this.#attempts}, reason: ${reason})`,
+    );
 
     await delay(ms);
     this.#waiting = false;
@@ -82,11 +96,13 @@ export class Session {
     await this.start({ fresh });
   }
 
+  // Graceful shutdown: disconnect client, destroy store, close database,
+  // flush logger, then exit with the given code.
   async shutdown(code = 0) {
     if (this.#stopped) return;
     this.#stopped = true;
 
-    logger.info("shutting down");
+    getLogger().info("shutting down");
 
     const current = this.#client;
     this.#client = null;
@@ -95,13 +111,13 @@ export class Session {
     try {
       await store.destroy();
     } catch (error) {
-      logger.error({ err: error }, "store destroy failed");
+      getLogger().error({ err: error }, "store destroy failed");
     }
 
     try {
       closeDatabase();
     } catch (error) {
-      logger.error({ err: error }, "database close failed");
+      getLogger().error({ err: error }, "database close failed");
     }
 
     await flushLogger();
@@ -111,25 +127,28 @@ export class Session {
 
   async #dispose(target) {
     if (!target) return;
-
     try {
       await target.disconnect();
     } catch (error) {
-      logger.debug({ err: error }, "disconnect failed");
+      getLogger().debug({ err: error }, "disconnect failed");
     }
   }
 }
 
+// Registers process-level signal and error handlers. SIGINT/SIGTERM trigger a
+// graceful shutdown; unhandled errors are logged (and fatal ones shut down).
 export const registerProcessHandlers = (session) => {
   process.on("SIGINT", () => void session.shutdown(0));
   process.on("SIGTERM", () => void session.shutdown(0));
 
   process.on("unhandledRejection", (error) => {
-    logger.error({ err: error }, "unhandled rejection");
+    getLogger().error({ err: error }, "unhandled rejection");
   });
 
   process.on("uncaughtException", (error) => {
-    logger.fatal({ err: error }, "uncaught exception");
+    getLogger().fatal({ err: error }, "uncaught exception");
     void session.shutdown(1);
   });
 };
+
+

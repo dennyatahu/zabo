@@ -1,3 +1,9 @@
+// Reload plugin: snapshot file hashes, diff against baseline, reload plugins,
+// and show a live-updating report. Owner-only, bypassPrefix.
+// The ?v= cache-busting import pattern means old module instances are never
+// GC'd (slow memory leak on repeated reloads); documented trade-off, no better
+// alternative in Bun docs.
+
 import { delay } from "zapo-js";
 
 import { logger } from "../../core/logger.js";
@@ -43,7 +49,6 @@ export default {
       report = await reloadManager.reload();
     } catch (err) {
       logger.error({ err }, "reload failed");
-
       return edit(`*Reload*\n▸ Failed: ${err.message}`);
     }
 

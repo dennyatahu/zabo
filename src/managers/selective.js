@@ -1,5 +1,10 @@
-import { db, getSetting, setSetting, transaction } from "../core/database.js";
-import { fail, ok } from "../utils.js";
+// Selective manager: controls which groups/commands send replies visible only
+// to the command sender (plus optional target users). State persisted in the
+// database: selective_groups, selective_commands, selective_targets.
+
+import { db, transaction } from "../database/connection.js";
+import { getSetting, setSetting } from "../database/settings.js";
+import { ok, fail } from "../lib/plugin-schema.js";
 
 const MESSAGES = Object.freeze({
   ENABLED: "Selective mode is on for this group. Bot messages are only visible to the command sender.",
@@ -13,7 +18,7 @@ const MESSAGES = Object.freeze({
 
 const isId = (value) => typeof value === "string" && /^\d+$/.test(value);
 
-class SelectiveManager {
+export class SelectiveManager {
   #global = false;
   #groups = new Map();
   #only = new Set();
@@ -42,7 +47,6 @@ class SelectiveManager {
       .prepare("SELECT command, user_id FROM selective_targets")
       .all()) {
       const ids = this.#targets.get(command) ?? new Set();
-
       ids.add(user_id);
       this.#targets.set(command, ids);
     }
@@ -66,7 +70,6 @@ class SelectiveManager {
   setTargets = (names, ids) => {
     for (const name of names) {
       const current = this.#targets.get(name) ?? new Set();
-
       ids.forEach((id) => current.add(id));
       this.#targets.set(name, current);
     }
@@ -75,7 +78,6 @@ class SelectiveManager {
       const insert = db.prepare(
         "INSERT OR IGNORE INTO selective_targets (command, user_id) VALUES (?, ?)",
       );
-
       for (const name of names) for (const id of ids) insert.run(name, id);
     });
 
@@ -89,11 +91,9 @@ class SelectiveManager {
 
     for (const name of names) {
       const current = this.#targets.get(name);
-
       if (!current) continue;
 
       for (const id of ids) if (current.delete(id)) removed += 1;
-
       if (!current.size) this.#targets.delete(name);
     }
 
@@ -103,7 +103,6 @@ class SelectiveManager {
       const remove = db.prepare(
         "DELETE FROM selective_targets WHERE command = ? AND user_id = ?",
       );
-
       for (const name of names) for (const id of ids) remove.run(name, id);
     });
 
@@ -122,7 +121,6 @@ class SelectiveManager {
     if (added.length) {
       transaction(() => {
         const insert = db.prepare("INSERT OR IGNORE INTO selective_commands (name) VALUES (?)");
-
         added.forEach((name) => insert.run(name));
       });
     }
@@ -139,7 +137,6 @@ class SelectiveManager {
 
     transaction(() => {
       const remove = db.prepare("DELETE FROM selective_commands WHERE name = ?");
-
       removed.forEach((name) => remove.run(name));
     });
 

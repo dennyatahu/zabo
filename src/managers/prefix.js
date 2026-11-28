@@ -1,6 +1,11 @@
-import { db, getSetting, setSetting, transaction } from "../core/database.js";
-import { fail, ok } from "../utils.js";
-import { pluginManager } from "./plugin-manager.js";
+// Prefix manager: loads/stores command prefixes in the database, resolves
+// whether a message starts with a prefix, and exposes add/delete/enable/disable
+// operations used by the prefix plugin.
+
+import { db, transaction } from "../database/connection.js";
+import { getSetting, setSetting } from "../database/settings.js";
+import { ok, fail } from "../lib/plugin-schema.js";
+import { pluginManager } from "./plugin.js";
 
 const DEFAULT_PREFIXES = Object.freeze(["."]);
 
@@ -19,7 +24,7 @@ const MESSAGES = Object.freeze({
 
 const isValidPrefix = (value) => typeof value === "string" && value.length > 0;
 
-class PrefixManager {
+export class PrefixManager {
   #prefixes = [...DEFAULT_PREFIXES];
   #active = false;
 
@@ -102,7 +107,6 @@ class PrefixManager {
   resetPrefix = () => {
     this.#prefixes = [...DEFAULT_PREFIXES];
     this.#persist();
-
     return ok(MESSAGES.RESET);
   };
 
@@ -137,7 +141,6 @@ class PrefixManager {
 
     if (position > this.#prefixes.length) {
       const count = this.#prefixes.length;
-
       return fail(
         `Index ${position} is out of range. The list has ${count} ${count === 1 ? "prefix" : "prefixes"}.`,
       );

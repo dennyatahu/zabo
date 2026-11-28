@@ -1,6 +1,10 @@
+// Selective plugin: make bot replies visible only to the command sender, or
+// to chosen users. Owner-only, bypassPrefix.
+
 import { userOf } from "../../lib/jid.js";
 import { findPushNames } from "../../lib/push-name.js";
-import { buildError, buildGuide, isHelp, splitString } from "../../utils.js";
+import { buildError, buildGuide, isHelp } from "../../lib/guide.js";
+import { splitString } from "../../lib/split-string.js";
 
 const SEPARATOR = /[\s,]+/;
 const USER_TOKEN = /^(?:[@+]\d+|\d{5,})$/;

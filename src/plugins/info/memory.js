@@ -1,4 +1,7 @@
-import { formatBytes } from "../../utils.js";
+// Memory plugin: shows process memory usage (RSS, heap, external, array buffers).
+// Uses process.memoryUsage() (Bun-compatible global) and formatBytes helper.
+
+import { formatBytes } from "../../lib/format.js";
 
 const LABELS = Object.freeze({
   rss: "RSS",

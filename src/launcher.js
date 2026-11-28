@@ -1,17 +1,22 @@
-import { resolve } from "node:path";
+// Launcher / supervisor. Spawns src/main.js as a child process and restarts it
+// when it exits with code 75 (RESTART_EXIT_CODE). The child runs with
+// ZABO_SUPERVISED=1 so it knows it is supervised.
+// Protocol (unchanged): exit code 75 = request restart; env ZABO_SUPERVISED=1.
 
-import { RESTART_EXIT_CODE, SUPERVISED_ENV } from "./constants.js";
+import { PATHS } from "./config/paths.js";
+import { RESTART_EXIT_CODE, SUPERVISED_ENV } from "./config/constants.js";
 
-const entry = resolve(import.meta.dir, "main.js");
+const entry = `${PATHS.src}main.js`;
 const execArgv = process.execArgv.filter((arg) => !arg.startsWith("--watch"));
 
 let child = null;
 let stopping = false;
 
 const start = () => {
-  child = Bun.spawn([process.execPath, ...execArgv, entry], {
+  child = Bun.spawn(["bun", entry], {
     stdio: ["inherit", "inherit", "inherit"],
     env: { ...process.env, [SUPERVISED_ENV]: "1" },
+    cwd: PATHS.root,
   });
 
   child.exited

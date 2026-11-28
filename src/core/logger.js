@@ -1,109 +1,94 @@
-import pino from "pino";
+// Structured logger for the application.
+// Uses zapo-js's createPinoLogger (official PinoLogger adapter) with
+// pino-pretty pretty-printing on the main thread — no worker thread needed.
+// This satisfies the zapo-js Logger interface:
+//   { level, trace(message, context?), debug, info, warn, error, child(bindings, options) }
+// Initialized asynchronously in src/main.js bootstrap (not at import time).
 
-const LEVELS = new Set(["trace", "debug", "info", "warn", "error", "fatal", "silent"]);
-const requestedLevel = Bun.env.LOG_LEVEL?.trim().toLowerCase();
-const level = LEVELS.has(requestedLevel) ? requestedLevel : "info";
+import { createPinoLogger } from "zapo-js";
 
-const target = pino({
-  name: "zabo",
-  level,
-  serializers: {
-    err: pino.stdSerializers.err,
-    error: pino.stdSerializers.err,
-  },
-  transport: {
-    target: "pino-pretty",
-    options: {
+let loggerInstance = null;
+
+const LEVELS = Object.freeze([
+  "trace",
+  "debug",
+  "info",
+  "warn",
+  "error",
+  "fatal",
+  "silent",
+]);
+
+const resolveLevel = () => {
+  const level = Bun.env.LOG_LEVEL?.trim().toLowerCase();
+  return LEVELS.includes(level) ? level : "info";
+};
+
+// Create the real pino-based logger. Async because createPinoLogger
+// dynamically loads pino (+ pino-pretty when pretty: true).
+export const initLogger = async () => {
+  if (loggerInstance) return loggerInstance;
+
+  const level = resolveLevel();
+
+  loggerInstance = await createPinoLogger({
+    name: "zabo",
+    level,
+    pretty: true,
+    prettyOptions: {
       translateTime: "HH:MM:ss.l",
       ignore: "pid,hostname,service",
       colorize: Boolean(process.stdout.isTTY),
       errorLikeObjectKeys: ["err", "error"],
     },
+  });
+
+  return loggerInstance;
+};
+
+export const getLogger = () => loggerInstance;
+
+// Stable `logger` binding that always forwards to the current instance.
+// Modules import { logger } and call logger.info/error/etc. at runtime,
+// after initLogger() has populated loggerInstance in main.js.
+export const logger = new Proxy({}, {
+  get(_target, prop) {
+    const instance = loggerInstance ?? noopLogger;
+    const value = instance[prop];
+    return typeof value === "function" ? value.bind(instance) : value;
   },
 });
 
-const hasKeys = (value) =>
-  value !== null &&
-  typeof value === "object" &&
-  !(value instanceof Error) &&
-  Object.keys(value).length > 0;
-
-const emit = (stream, method, first, second) => {
-  if (typeof first === "string") {
-    if (hasKeys(second)) {
-      stream[method](second, first);
-      return;
-    }
-
-    stream[method](first);
-    return;
-  }
-
-  if (typeof second === "string") {
-    stream[method](first, second);
-    return;
-  }
-
-  stream[method](first);
+// Minimal noop logger used only if initLogger has not completed yet.
+export const noopLogger = {
+  get level() {
+    return "info";
+  },
+  trace() {},
+  debug() {},
+  info() {},
+  warn() {},
+  error() {},
+  fatal() {},
+  child() {
+    return this;
+  },
 };
 
-class Logger {
-  #stream;
-
-  constructor(stream) {
-    this.#stream = stream;
-  }
-
-  get level() {
-    return this.#stream.level;
-  }
-
-  trace(message, context) {
-    emit(this.#stream, "trace", message, context);
-  }
-
-  debug(message, context) {
-    emit(this.#stream, "debug", message, context);
-  }
-
-  info(message, context) {
-    emit(this.#stream, "info", message, context);
-  }
-
-  warn(message, context) {
-    emit(this.#stream, "warn", message, context);
-  }
-
-  error(message, context) {
-    emit(this.#stream, "error", message, context);
-  }
-
-  fatal(message, context) {
-    emit(this.#stream, "fatal", message, context);
-  }
-
-  child(bindings, options) {
-    return new Logger(this.#stream.child(bindings, options));
-  }
-
-  flush(callback) {
-    this.#stream.flush(callback);
-  }
-}
-
-export const logger = new Logger(target);
-
+// Flush pending log records before shutdown. pino's flush is callback-based.
+// Resolves when flushed or after a 1s fallback timeout.
 export const flushLogger = () =>
   new Promise((resolve) => {
     const timer = setTimeout(resolve, 1000);
 
-    try {
-      logger.flush(() => {
-        clearTimeout(timer);
-        resolve();
-      });
-    } catch {
+    if (!loggerInstance || typeof loggerInstance.flush !== "function") {
       clearTimeout(timer);
       resolve();
+      return;
     }
+
+    loggerInstance.flush(() => {
+      clearTimeout(timer);
+      resolve();
+    });
   });

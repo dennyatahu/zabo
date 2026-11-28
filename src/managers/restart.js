@@ -1,13 +1,18 @@
+// Restart manager: records a restart request in the database and triggers
+// Session.shutdown(RESTART_EXIT_CODE). The launcher (src/launcher.js) watches
+// for exit code 75 and re-spawns the child process.
+// Is supported only when ZABO_SUPERVISED=1 and a session is bound.
+
 import { delay } from "zapo-js";
 
-import { RESTART_EXIT_CODE, RESTART_NOTICE_TTL_MS, SUPERVISED_ENV } from "../constants.js";
-import { db } from "../core/database.js";
+import { RESTART_EXIT_CODE, RESTART_NOTICE_TTL_MS, SUPERVISED_ENV } from "../config/constants.js";
+import { db } from "../database/connection.js";
 import { logger } from "../core/logger.js";
 
 const SEND_ATTEMPTS = 3;
 const SEND_RETRY_MS = 1000;
 
-class RestartManager {
+export class RestartManager {
   #session = null;
 
   bind(session) {
@@ -15,7 +20,7 @@ class RestartManager {
   }
 
   get isSupported() {
-    return process.env[SUPERVISED_ENV] === "1" && this.#session !== null;
+    return Bun.env[SUPERVISED_ENV] === "1" && this.#session !== null;
   }
 
   request(jid, messageId) {
@@ -52,11 +57,9 @@ class RestartManager {
     for (let attempt = 1; attempt <= SEND_ATTEMPTS; attempt += 1) {
       try {
         await send();
-
         return;
       } catch (err) {
         logger.warn({ err, attempt }, "restart notice failed");
-
         await delay(SEND_RETRY_MS);
       }
     }

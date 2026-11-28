@@ -1,6 +1,9 @@
+// Push-name tracking: remembers contacts' display names from incoming messages
+// and upserts them into the store's contacts cache. Also exposes lookups by JID.
+
 import { isLidJid, isUserJid, toUserJid, WA_DEFAULTS } from "zapo-js";
 
-import { config } from "../config.js";
+import { config } from "../config/env.js";
 import { logger } from "../core/logger.js";
 import { store } from "../core/store.js";
 import { senderJids } from "./jid.js";
@@ -39,7 +42,6 @@ const findPushName = async (id) => {
 
   for (const server of servers) {
     const record = await contacts().getByJid(`${id}@${server}`);
-
     if (record?.pushName) return record.pushName;
   }
 
@@ -47,7 +49,8 @@ const findPushName = async (id) => {
 };
 
 export const findPushNames = async (ids) => {
-  const entries = await Promise.all(ids.map(async (id) => [id, await findPushName(id)]));
-
+  const entries = await Promise.all(
+    ids.map(async (id) => [id, await findPushName(id)]),
+  );
   return new Map(entries.filter(([, name]) => name));
 };

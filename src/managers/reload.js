@@ -1,21 +1,24 @@
-import { readdir } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+// Reload manager: snapshots file hashes across src/, diffs against baseline,
+// reloads plugins via pluginManager, and reports what changed.
+// Plugin files are hashed with Bun.CryptoHasher. The ?v= cache-busting import
+// pattern means old module instances are never GC'd (slow memory leak on
+// repeated reloads); no better alternative exists in Bun docs, so we document
+// the trade-off here and keep the pattern.
 
-import { config } from "../config.js";
-import { pluginManager } from "./plugin-manager.js";
+import { PATHS } from "../config/paths.js";
+import { pluginManager } from "./plugin.js";
 
-const toRelative = (path) => relative(config.paths.root, path).split(sep).join("/");
+const toRelative = (path) =>
+  path.startsWith(PATHS.root) ? path.slice(PATHS.root.length + 1) : path;
 
-const PLUGINS_PREFIX = `${toRelative(config.paths.plugins)}/`;
+const PLUGINS_PREFIX = `plugins/`;
 
 const isPluginFile = (path) => path.startsWith(PLUGINS_PREFIX);
 
 const hashFile = async (path) => {
   try {
     const hasher = new Bun.CryptoHasher("sha1");
-
     hasher.update(await Bun.file(path).arrayBuffer());
-
     return hasher.digest("hex");
   } catch {
     return null;
@@ -23,16 +26,14 @@ const hashFile = async (path) => {
 };
 
 const snapshot = async () => {
-  const entries = await readdir(config.paths.src, { recursive: true, withFileTypes: true });
-
-  const files = entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
-    .map((entry) => join(entry.parentPath, entry.name));
+  const files = Array.from(new Bun.Glob("**/*.js").scanSync({ cwd: PATHS.src }));
 
   const hashes = await Promise.all(files.map(hashFile));
 
   return new Map(
-    files.flatMap((file, index) => (hashes[index] ? [[toRelative(file), hashes[index]]] : [])),
+    files.flatMap((file, index) =>
+      hashes[index] ? [[toRelative(file), hashes[index]]] : [],
+    ),
   );
 };
 
@@ -51,7 +52,7 @@ const diff = (before, after) => {
   return changes.sort((a, b) => a.path.localeCompare(b.path));
 };
 
-class ReloadManager {
+export class ReloadManager {
   #baseline = new Map();
 
   async init() {
@@ -64,10 +65,15 @@ class ReloadManager {
     const changes = diff(this.#baseline, current);
     const plugins = await pluginManager.load();
 
+    // Keep non-plugin file hashes in the baseline; replace plugin file hashes
+    // with the current snapshot so the next diff is against this reload.
     this.#baseline = this.#commit(current);
 
     return {
-      changes: changes.map((change) => ({ ...change, applied: isPluginFile(change.path) })),
+      changes: changes.map((change) => ({
+        ...change,
+        applied: isPluginFile(change.path),
+      })),
       failures: pluginManager.failures.map(({ path, message }) => ({
         path: toRelative(path),
         message: message.split("\n")[0],

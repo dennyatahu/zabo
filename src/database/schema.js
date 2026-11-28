@@ -1,8 +1,9 @@
-import { Database } from "bun:sqlite";
+// SQL schema for the application database (data/database.sqlite).
+// All statements use CREATE TABLE IF NOT EXISTS so they are safe to run
+// on existing databases without dropping data. Column additions are handled
+// by versioned migrations in src/database/migrations.js.
 
-import { config } from "../config.js";
-
-const SCHEMA = `
+export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS app_settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   self_mode INTEGER NOT NULL DEFAULT 0 CHECK (self_mode IN (0, 1)),
@@ -78,56 +79,3 @@ CREATE TABLE IF NOT EXISTS restart_request (
   message_id TEXT
 );
 `;
-
-export const db = new Database(config.paths.database);
-
-db.exec("PRAGMA foreign_keys = ON");
-db.exec("PRAGMA journal_mode = WAL");
-db.exec("PRAGMA synchronous = NORMAL");
-db.exec(SCHEMA);
-
-const restartColumns = db.prepare("PRAGMA table_info(restart_request)").all();
-
-if (!restartColumns.some(({ name }) => name === "message_id")) {
-  db.exec("ALTER TABLE restart_request ADD COLUMN message_id TEXT");
-}
-
-const settingColumns = db.prepare("PRAGMA table_info(app_settings)").all();
-
-if (!settingColumns.some(({ name }) => name === "lock_mode")) {
-  db.exec("ALTER TABLE app_settings ADD COLUMN lock_mode INTEGER NOT NULL DEFAULT 0");
-}
-
-export const closeDatabase = () => {
-  try {
-    db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
-  } catch {
-  }
-
-  try {
-    db.close();
-  } catch {
-  }
-};
-
-export const transaction = (task) => db.transaction(task).immediate();
-
-const SETTING_COLUMNS = new Set(["self_mode", "prefix_mode", "selective_mode", "lock_mode"]);
-
-export const setSetting = (column, value) => {
-  if (!SETTING_COLUMNS.has(column)) throw new Error(`Unknown setting: ${column}`);
-
-  return db
-    .prepare(
-      `INSERT INTO app_settings (id, ${column}) VALUES (1, ?)
-       ON CONFLICT(id) DO UPDATE SET ${column} = excluded.${column},
-       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
-    )
-    .run(Number(value));
-};
-
-export const getSetting = (column) => {
-  if (!SETTING_COLUMNS.has(column)) throw new Error(`Unknown setting: ${column}`);
-
-  return db.prepare(`SELECT ${column} FROM app_settings WHERE id = 1`).get()?.[column] === 1;
-};

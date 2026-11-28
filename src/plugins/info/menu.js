@@ -1,5 +1,11 @@
+// Menu plugin: browse commands by category and customize the menu link preview
+// (images, URL, title, description). Owner-only options for images/text.
+// Contract: { name, commands, categories, ownerOnly, options, fn(ctx) }.
+
 import { isOwner } from "../../lib/jid.js";
-import { buildError, buildGuide, fail, isHelp, ok, splitString } from "../../utils.js";
+import { buildError, buildGuide, isHelp } from "../../lib/guide.js";
+import { fail, ok } from "../../lib/plugin-schema.js";
+import { splitString } from "../../lib/split-string.js";
 
 const IMAGE_CONTENT = "imageMessage";
 const OWNER_ONLY = "*Owner Only*\n▸ Only the owner can use this option.";
@@ -89,7 +95,6 @@ const isIndex = (value) => /^\d+$/.test(value);
 
 const attachedImage = ({ m }) => {
   const target = [m, m.q].find((item) => item?.content === IMAGE_CONTENT);
-
   return target?.download("buffer");
 };
 
@@ -196,7 +201,6 @@ const runOwnerAction = async (handler, value, context) => {
 
   if (!isOwner(m)) {
     await react(m, FAILURE);
-
     return m.reply(OWNER_ONLY);
   }
 
@@ -206,13 +210,11 @@ const runOwnerAction = async (handler, value, context) => {
     result = await handler(value, context);
   } catch (err) {
     await react(m, FAILURE);
-
     return m.reply(buildError(err.message));
   }
 
   if (result?.error) {
     await react(m, FAILURE);
-
     return m.reply(result.error);
   }
 
@@ -224,7 +226,6 @@ const runOwnerAction = async (handler, value, context) => {
 const browse = (menuManager, positional, prefix) => {
   if (!positional) return menuManager.getMainMenu(prefix);
   if (positional.toLowerCase() === "all") return menuManager.getAllMenu(prefix);
-
   return menuManager.getCategoryMenu(positional, prefix);
 };
 

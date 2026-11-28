@@ -1,6 +1,9 @@
+// JID (Jabber ID) helpers: extract user from JID, determine sender JIDs,
+// check owner/self/lock-target. Reads owner list and bot name from config.
+
 import { toUserJid } from "zapo-js";
 
-import { config } from "../config.js";
+import { config } from "../config/env.js";
 
 export const userOf = (jid) => jid?.split("@")[0].split(":")[0];
 
@@ -11,7 +14,6 @@ export const isOwner = ({ key }) =>
   key.fromMe ||
   senderJids(key).some((jid) => {
     const user = userOf(jid);
-
     return Boolean(user) && config.owners.includes(user);
   });
 
@@ -26,7 +28,9 @@ export const isSelf = (client, jid) => {
   return [meJid, meLid].some((me) => me && toUserJid(me, CANONICAL) === user);
 };
 
-export const LOCK_TARGET_ERROR = `Specify the bot by name (\`${config.botName}\`) or mention it.`;
+// Computed lazily so importing this module does not require loadEnv() first.
+export const lockTargetError = () =>
+  `Specify the bot by name (\`${config?.botName ?? "zabo"}\`) or mention it.`;
 
 export const isLockTarget = (m, args) => {
   const botName = config.botName.toLowerCase();

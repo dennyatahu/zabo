@@ -1,9 +1,14 @@
-import { readdir } from "node:fs/promises";
-import { join } from "node:path";
+// Plugin manager: scans src/plugins/**/*.js, imports each with cache-busting
+// (?v=timestamp), validates the plugin shape, and indexes commands.
+// Uses Bun.Glob instead of node:fs readdir(recursive) for directory scanning.
+// Reload creates fresh module instances; old instances are never garbage
+// collected (documented trade-off: memory grows slightly on each reload).
 
-import { config } from "../config.js";
+import { PATHS } from "../config/paths.js";
 import { logger } from "../core/logger.js";
-import { isValidPlugin } from "../utils.js";
+import { isValidPlugin } from "../lib/plugin-schema.js";
+
+const glob = new Bun.Glob("**/*.js");
 
 class PluginManager {
   #commands = new Map();
@@ -23,6 +28,7 @@ class PluginManager {
     return this.#commands.get(command);
   }
 
+  // Queue loads so concurrent reload() calls serialize.
   load() {
     const task = this.#queue.then(() => this.#loadAll());
 
@@ -34,17 +40,18 @@ class PluginManager {
   }
 
   async #scan() {
-    const files = await readdir(config.paths.plugins, { recursive: true });
+    const files = Array.from(glob.scanSync({ cwd: PATHS.plugins })).sort();
 
-    return files
-      .filter((file) => file.endsWith(".js"))
-      .sort()
-      .map((file) => join(config.paths.plugins, file));
+    return files.map((file) => new URL(file, `file://${PATHS.plugins}/`).pathname);
   }
 
   async #import(path, stamp) {
     try {
-      const { default: plugin } = await import(`${Bun.pathToFileURL(path).href}?v=${stamp}`);
+      // Bun.pathToFileURL converts an absolute path to a file:// URL.
+      // The ?v= stamp busts the ESM module cache so the file is re-read.
+      const { default: plugin } = await import(
+        `${Bun.pathToFileURL(path).href}?v=${stamp}`
+      );
 
       if (!isValidPlugin(plugin)) throw new Error("invalid plugin shape");
 
@@ -54,7 +61,6 @@ class PluginManager {
     } catch (err) {
       logger.error({ err, path }, "plugin load failed");
       this.#failures.push({ path, message: err.message });
-
       return null;
     }
   }

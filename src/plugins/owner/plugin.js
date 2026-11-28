@@ -1,12 +1,14 @@
-import { mkdir, readdir, unlink } from "node:fs/promises";
-import { basename, join, relative, sep } from "node:path";
+// Plugin plugin: add, remove, list, and export plugin files from chat.
+// Reads/writes files under src/plugins/<category>/<name>.js (contract: fixed location).
+// Owner-only, bypassPrefix.
 
 import { unwrapMessage } from "zapo-js";
 
-import { config } from "../../config.js";
-import { buildError, buildGuide, isHelp, splitString } from "../../utils.js";
+import { PATHS } from "../../config/paths.js";
+import { buildError, buildGuide, isHelp } from "../../lib/guide.js";
+import { splitString } from "../../lib/split-string.js";
 
-const PLUGINS_DIR = config.paths.plugins;
+const PLUGINS_DIR = PATHS.plugins;
 const SAFE_NAME = /[^a-zA-Z0-9._-]/g;
 
 const GUIDE = {
@@ -41,9 +43,10 @@ const fileName = (value) => {
   return name.toLowerCase().endsWith(".js") ? name : `${name}.js`;
 };
 
+const basename = (path) => path.split(/[/\\]/).pop();
+
 const listValues = (source, field) => {
   const match = source.match(new RegExp(`\\b${field}\\s*:\\s*\\[([^\\]]*)\\]`));
-
   return match ? [...match[1].matchAll(/["'`]([^"'`]+)["'`]/g)].map((item) => item[1]) : [];
 };
 
@@ -58,9 +61,10 @@ const targetDir = (source) => {
 };
 
 const pluginFiles = async () => {
-  const files = await readdir(PLUGINS_DIR, { recursive: true });
+  const glob = new Bun.Glob("plugins/**/*.js");
+  const files = Array.from(glob.scanSync({ cwd: PATHS.src })).sort();
 
-  return files.filter((file) => file.endsWith(".js")).sort().map((file) => join(PLUGINS_DIR, file));
+  return files.map((file) => new URL(file, `file://${PATHS.src}/`).pathname);
 };
 
 const locate = async (command, pluginManager) => {
@@ -108,8 +112,8 @@ const add = async ({ value, q, reloadManager }) => {
   if (!name) throw new Error("Provide a valid file name.");
   if (!dir) throw new Error("No valid category found in the plugin code.");
 
-  await mkdir(join(PLUGINS_DIR, dir), { recursive: true });
-  await Bun.write(join(PLUGINS_DIR, dir, name), source);
+  // Bun.write creates parent directories automatically.
+  await Bun.write(`${PLUGINS_DIR}/${dir}/${name}`, source);
 
   const report = await reloadManager.reload();
   const failed = report.failures.find((item) => item.path.endsWith(`/${dir}/${name}`));
@@ -127,17 +131,19 @@ const del = async ({ value, pluginManager, reloadManager }) => {
 
   if (!found) throw new Error(`No plugin found for command \`${command}\`.`);
 
-  await unlink(found.path);
+  await Bun.file(found.path).delete();
   await reloadManager.reload();
 
-  return `▸ Deleted: ${relative(PLUGINS_DIR, found.path).split(sep).join("/")}`;
+  const relativePath = found.path.slice(PLUGINS_DIR.length + 1).split(/[/\\]/).join("/");
+
+  return `▸ Deleted: ${relativePath}`;
 };
 
 const list = async ({ pluginManager }) => {
   const grouped = new Map();
 
   for (const path of await pluginFiles()) {
-    const parts = relative(PLUGINS_DIR, path).split(sep).join("/").split("/");
+    const parts = path.slice(PLUGINS_DIR.length + 1).split(/[/\\]/);
     const dir = parts.shift();
     const name = parts.join("/");
     const source = await Bun.file(path).text();

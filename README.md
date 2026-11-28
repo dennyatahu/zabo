@@ -14,10 +14,10 @@
 
 ## Features
 
-- 🔌 **Drop-in plugins**: add a `.js` file, restart, done
+- 🔌 **Drop-in plugins**: add a `.js` file under `src/plugins/<category>/`, restart or reload, done
 - 🔐 **Pairing code or QR** login with auto-reconnect
 - 🎛️ **Chat-side control**: prefix, self, lock, and selective modes
-- 💾 **Persistent** session and settings in SQLite
+- 💾 **Persistent** session and settings in SQLite (`bun:sqlite`)
 
 ## Quick start
 
@@ -31,6 +31,14 @@ bun start
 
 Requires **Bun 1.4+**. Pairing code: set `BOT_PN`, then WhatsApp → *Linked devices* → *Link with phone number*. QR: set `AUTH_METHOD=qr` and scan.
 
+## Commands
+
+```bash
+bun install          # install dependencies (clean install: rm -rf node_modules bun.lock first)
+bun start            # run through the supervisor (restart on exit code 75)
+bun run dev          # run main.js directly with --watch
+```
+
 ## Environment
 
 | Variable      | Default | Description                                  |
@@ -40,7 +48,7 @@ Requires **Bun 1.4+**. Pairing code: set `BOT_PN`, then WhatsApp → *Linked dev
 | `OWNER`       | n/a     | Owner number(s), comma-separated             |
 | `BOT_NAME`    | `zabo`  | Name accepted by `lock` / `unlock`           |
 | `TITLE_MENU`  | `zabo`  | Default link preview title (override: `menu set title`) |
-| `DESC_MENU`   | n/a     | Default link preview description (override: `menu set desc`) |
+| `DESC_MENU`   | `by dennyatahu` | Default link preview description (override: `menu set desc`) |
 | `LOG_LEVEL`   | `info`  | `trace` to `fatal`, or `silent`              |
 
 ## Owner commands
@@ -56,8 +64,42 @@ Work without a prefix. Add `-h` for a guide.
 | `plugin add \| del \| get \| list` | Manage plugins from chat               |
 | `menu set \| get \| del \| save` | Customize the menu images and link       |
 | `r` / `res`                      | Reload plugins / restart process         |
+| `!` / `!!`                       | Eval JavaScript (owner-only, full access) |
+| `$`                              | Run shell command (owner-only, full access) |
+
+## Project structure
+
+```
+zabo/
+├─ src/
+│  ├─ main.js                  bootstrap (env → logger → db → managers → session)
+│  ├─ launcher.js              supervisor: exit code 75 = restart child
+│  ├─ config/                  env.js, paths.js, constants.js
+│  ├─ core/                    client.js, session.js, dispatcher.js, store.js,
+│  │                           logger.js, events/ (auth, connection, message)
+│  ├─ database/                connection.js, schema.js, migrations.js, settings.js
+│  ├─ managers/                prefix.js, toggle.js, plugin.js, reload.js,
+│  │                           restart.js, selective.js, menu/ (image, storage,
+│  │                           command, index)
+│  ├─ lib/                     jid.js, push-name.js, serialize-message.js,
+│  │                           format.js, guide.js, plugin-schema.js, qr.js,
+│  │                           split-string.js, selective/, eval/
+│  └─ plugins/
+│     ├─ owner/                self, lock, unlock, prefix, selective, plugin,
+│     │                        menu, reload, restart, eval, eval-async, shell
+│     └─ info/                 ping, uptime, memory, menu
+├─ data/                       runtime databases (gitignored)
+├─ .env.example
+├─ package.json
+├─ bun.lock
+└─ README.md
+```
+
+No TypeScript, no `jsconfig.json`/`tsconfig.json`, no `#...` import aliases. All internal imports are relative with full `.js` extensions.
 
 ## Write a plugin
+
+Create `src/plugins/info/hello.js` (or any category folder):
 
 ```js
 export default {
@@ -70,7 +112,7 @@ export default {
 };
 ```
 
-The handler also receives `args`, `q`, `client`, `jid`, `store`, `prefix`, and every manager.
+The handler receives `m`, `q`, `text`, `args`, `client`, `jid`, `store`, `prefix`, `command`, plus every manager (`prefixManager`, `menuManager`, `pluginManager`, `reloadManager`, `restartManager`, `selectiveManager`, `lockManager`, `selfManager`).
 
 ## License
 

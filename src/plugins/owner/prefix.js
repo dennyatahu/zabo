@@ -1,4 +1,9 @@
-import { buildError, buildGuide, fail, isHelp } from "../../utils.js";
+// Prefix plugin: manage command prefixes (add, del, on, off, reset, list).
+// Owner-only, bypassPrefix.
+
+import { buildError, buildGuide, isHelp } from "../../lib/guide.js";
+import { fail } from "../../lib/plugin-schema.js";
+import { splitString } from "../../lib/split-string.js";
 
 const GUIDE = {
   title: "Prefix",

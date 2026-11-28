@@ -1,4 +1,10 @@
-import { Readable } from "node:stream";
+// Serializes a raw WhatsApp message event into a plugin-friendly message object:
+//   { content, text, contextInfo, mentions, reply, react, download, client, ... }
+// download(type) returns bytes (Uint8Array), buffer (Buffer), or a Readable stream.
+// Uses zapo-js's WaMediaTransferClient for thumbnail decryption and
+// client.message.downloadBytes / client.message.download for media download.
+// Buffer is used only where zapo-js or callers expect it; Uint8Array is used elsewhere.
+
 import { getContentType, unwrapMessage, WaMediaTransferClient } from "zapo-js";
 
 import { isSelf } from "./jid.js";
@@ -16,7 +22,12 @@ const toOutput = (bytes, type) => {
     case "buffer":
       return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     default:
-      return Readable.from([bytes], { objectMode: false });
+      // Return a web ReadableStream wrapping the bytes. Bun interops with
+      // Node Readable, so callers expecting a stream still work.
+      return new ReadableStream({ start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      } });
   }
 };
 
@@ -34,7 +45,6 @@ const parse = (raw) => {
 
 const mentionsOf = (contextInfo) => {
   const raw = contextInfo?.mentionedJid ?? contextInfo?.mentionedJids ?? [];
-
   return Array.isArray(raw) ? [...raw] : raw ? [raw] : [];
 };
 
@@ -47,8 +57,7 @@ const downloadThumbnail = async ({
 }) => {
   if (!mediaKey || !directPath) {
     if (!jpegThumbnail) throw new Error(NO_MEDIA);
-
-    return Uint8Array.from(jpegThumbnail);
+    return new Uint8Array(jpegThumbnail);
   }
 
   let failure;
@@ -64,7 +73,6 @@ const downloadThumbnail = async ({
       });
     } catch (error) {
       if (error?.message !== MAC_MISMATCH) throw error;
-
       failure = error;
     }
   }

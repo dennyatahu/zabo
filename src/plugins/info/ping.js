@@ -1,3 +1,6 @@
+// Ping plugin: measures reply latency. Owner commands work without prefix.
+// Contract: { name, commands, categories, ownerOnly, options, fn(ctx) }.
+
 export default {
   name: "ping",
   commands: ["p", "ping"],

@@ -1,3 +1,5 @@
+// Self mode plugin: toggle owner-only mode. Owner-only, bypassPrefix.
+
 const ACTIONS = Object.freeze({
   on: (self) => self.enable(),
   off: (self) => self.disable(),

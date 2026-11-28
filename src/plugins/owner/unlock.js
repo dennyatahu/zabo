@@ -1,5 +1,8 @@
-import { isLockTarget, LOCK_TARGET_ERROR } from "../../lib/jid.js";
-import { buildGuide } from "../../utils.js";
+// Unlock plugin: unlock the bot after it was locked. Owner-only, bypassPrefix,
+// lockBypass (works while locked). Requires @bot mention or bot name.
+
+import { isLockTarget, lockTargetError } from "../../lib/jid.js";
+import { buildGuide } from "../../lib/guide.js";
 
 const GUIDE = {
   title: "Unlock",
@@ -28,7 +31,7 @@ export default {
   fn: async ({ m, args, lockManager }) => {
     if (!args.length && !m.mentions?.length) return m.reply(buildGuide(GUIDE));
 
-    if (!isLockTarget(m, args)) return m.reply(LOCK_TARGET_ERROR);
+    if (!isLockTarget(m, args)) return m.reply(lockTargetError());
 
     const { data, error } = lockManager.disable();
 

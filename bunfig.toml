@@ -1,5 +1,0 @@
-[install]
-trustedDependencies = ["zapo-js", "@zapo-js/native", "sharp"]
-
-[test]
-preload = []
