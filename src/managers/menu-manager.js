@@ -1,4 +1,4 @@
-import { Worker } from "node:worker_threads";
+import sharp from "sharp";
 
 import { proto } from "zapo-js";
 
@@ -9,26 +9,67 @@ import { logger } from "../core/logger.js";
 import { fail, ok } from "../utils.js";
 import { pluginManager } from "./plugin-manager.js";
 
-const WORKER_URL = new URL("../lib/image-worker.js", import.meta.url);
+const THUMBNAIL_SIZE = 640;
+const PREVIEW_SIZE = 50;
+const JPEG_QUALITY = 80;
+const WHITE = "#ffffff";
+const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 
-const processImage = (task, buffer) =>
-  new Promise((resolve, reject) => {
-    const worker = new Worker(WORKER_URL, { workerData: { task, buffer } });
+const readImage = async (buffer) => {
+  const image = sharp(buffer);
 
-    worker.once("message", ({ result, error }) => {
-      worker.terminate();
+  try {
+    await image.metadata();
+  } catch {
+    throw Object.assign(new Error("invalid image"), { code: "INVALID_IMAGE" });
+  }
 
-      if (error) return reject(Object.assign(new Error(error.message), { code: error.code }));
+  return image;
+};
 
-      return resolve(result);
-    });
+const encodeJpeg = (source, size) =>
+  source
+    .clone()
+    .resize(size, size, {
+      fit: "inside",
+      withoutEnlargement: true,
+      kernel: "linear",
+    })
+    .flatten({ background: WHITE })
+    .jpeg({ quality: JPEG_QUALITY })
+    .toBuffer();
 
-    worker.once("error", reject);
+const TASKS = {
+  thumbnail: async (image) => ({ data: await encodeJpeg(image, THUMBNAIL_SIZE) }),
 
-    worker.once("exit", (code) => {
-      if (code !== 0) reject(new Error(`image worker exited with code ${code}`));
-    });
-  });
+  favicon: async (image) => ({
+    data: await image
+      .clone()
+      .resize(FAVICON_SIZE, FAVICON_SIZE, {
+        fit: "contain",
+        background: TRANSPARENT,
+        kernel: "linear",
+      })
+      .png()
+      .toBuffer(),
+  }),
+
+  preview: async (image) => {
+    const { width, height } = await image.metadata();
+
+    return {
+      width,
+      height,
+      data: await encodeJpeg(image, PREVIEW_SIZE),
+    };
+  },
+};
+
+const processImage = async (task, buffer) => {
+  const image = await readImage(buffer);
+
+  return TASKS[task](image);
+};
 
 const DEFAULTS = Object.freeze({
   url: "https://github.com/dennyatahu/zabo",
